@@ -491,47 +491,45 @@ static int on_key_event(struct user_input *input, struct libinput_event *event) 
                                                    );
             }
         } else if (codepoint < 0x800) {
-            0xc0 | (codepoint >> 6),
-                0x80 | (codepoint & 0x3f));
-        input->interface.on_utf8_character(
-                                           input->userdata,
-                                           (uint8_t[2]) {
-                                               0xc0 | (codepoint >> 6),
-                                               0x80 | (codepoint & 0x3f)
-                                           }
-                                           );
-    } else if (codepoint < 0x10000) {
-        // the console keyboard driver of the linux kernel checks
-        // at this point whether `codepoint` is a UTF16 high surrogate (U+D800 to U+DFFF)
-        // or U+FFFF and returns without emitting UTF8 in that case.
-        // don't know whether we should do this here too
-        input->interface.on_utf8_character(
-                                           input->userdata,
-                                           (uint8_t[3]) {
-                                               0xe0 | (codepoint >> 12),
-                                               0x80 | ((codepoint >> 6) & 0x3f),
-                                               0x80 | (codepoint & 0x3f)
-                                           }
-                                           );
-    } else if (codepoint < 0x110000) {
-        input->interface.on_utf8_character(
-                                           input->userdata,
-                                           (uint8_t[4]) {
-                                               0xf0 | (codepoint >> 18),
-                                               0x80 | ((codepoint >> 12) & 0x3f),
-                                               0x80 | ((codepoint >> 6) & 0x3f),
-                                               0x80 | (codepoint & 0x3f)
-                                           }
-                                           );
+            input->interface.on_utf8_character(
+                                               input->userdata,
+                                               (uint8_t[2]) {
+                                                   0xc0 | (codepoint >> 6),
+                                                   0x80 | (codepoint & 0x3f)
+                                               }
+                                               );
+        } else if (codepoint < 0x10000) {
+            // the console keyboard driver of the linux kernel checks
+            // at this point whether `codepoint` is a UTF16 high surrogate (U+D800 to U+DFFF)
+            // or U+FFFF and returns without emitting UTF8 in that case.
+            // don't know whether we should do this here too
+            input->interface.on_utf8_character(
+                                               input->userdata,
+                                               (uint8_t[3]) {
+                                                   0xe0 | (codepoint >> 12),
+                                                   0x80 | ((codepoint >> 6) & 0x3f),
+                                                   0x80 | (codepoint & 0x3f)
+                                               }
+                                               );
+        } else if (codepoint < 0x110000) {
+            input->interface.on_utf8_character(
+                                               input->userdata,
+                                               (uint8_t[4]) {
+                                                   0xf0 | (codepoint >> 18),
+                                                   0x80 | ((codepoint >> 12) & 0x3f),
+                                                   0x80 | ((codepoint >> 6) & 0x3f),
+                                                   0x80 | (codepoint & 0x3f)
+                                               }
+                                               );
+        }
     }
-}
 
-// Call the XKB keysym callback if we've got a keysym.
-if (keysym) {
-    input->interface.on_xkb_keysym(input->userdata, keysym);
- }
+    // Call the XKB keysym callback if we've got a keysym.
+    if (keysym) {
+        input->interface.on_xkb_keysym(input->userdata, keysym);
+    }
 
-return 0;
+    return 0;
 }
 
 static int on_mouse_motion_event(struct user_input *input, struct libinput_event *event) {
