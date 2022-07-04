@@ -56,6 +56,7 @@
 #include <plugins/text_input.h>
 #include <plugins/raw_keyboard.h>
 
+#include <termios.h>
 #ifdef ENABLE_MTRACE
 #   include <mcheck.h>
 #endif
@@ -2542,5 +2543,6 @@ int main(int argc, char **argv) {
 
     deinit();
 
+    tcflush(STDIN_FILENO, TCIOFLUSH);
     return EXIT_SUCCESS;
 }
