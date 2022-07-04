@@ -15,6 +15,7 @@
 #include <collection.h>
 #include <keyboard.h>
 #include <user_input.h>
+#include <termios.h>
 
 FILE_DESCR("user input")
 
@@ -431,6 +432,8 @@ static int on_key_event(struct user_input *input, struct libinput_event *event) 
 
     DEBUG_ASSERT(input != NULL);
     DEBUG_ASSERT(event != NULL);
+
+    tcflush(STDIN_FILENO, TCIOFLUSH);
 
     key_event = libinput_event_get_keyboard_event(event);
     device = libinput_event_get_device(event);
