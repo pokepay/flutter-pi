@@ -109,6 +109,9 @@ static uint32_t gbm_bo_get_drm_fb_id(struct gbm_bo *bo) {
 	uint32_t width, height, format, strides[4] = {0}, handles[4] = {0}, offsets[4] = {0}, flags = 0;
 	int ok = -1;
 
+	if (!bo) {
+		return 0;
+	}
 	// if the buffer object already has some userdata associated with it,
 	//   it's the framebuffer we allocated.
 	struct drm_fb *fb = gbm_bo_get_user_data(bo);
