@@ -77,8 +77,7 @@ static int _advance(uintptr_t *value, int n_bytes, size_t *remaining) {
 static int _align(uintptr_t *value, int alignment, size_t *remaining) {
     int diff;
 
-    alignment--;
-	diff = ((((*value) + alignment) | alignment) - alignment) - *value;
+	diff = alignment - ((*value) %alignment);
 
     return _advance(value, diff, remaining);
 }
@@ -94,10 +93,10 @@ static int _advance_size_bytes(uintptr_t *value, size_t size, size_t *remaining)
 
 #define DEFINE_READ_WRITE_FUNC(suffix, value_type) \
 static int _write_##suffix(uint8_t **pbuffer, value_type value, size_t *remaining) { \
-	return _write(pbuffer, &value, sizeof value, remaining); \
+	return _write(pbuffer, &value, sizeof(value_type), remaining); \
 } \
 static int _read_##suffix(uint8_t **pbuffer, value_type* value, size_t *remaining) { \
-	return _read(pbuffer, value, sizeof *value, remaining); \
+	return _read(pbuffer, value, sizeof(value_type), remaining); \
 }
 
 DEFINE_READ_WRITE_FUNC(    u8,  uint8_t)
@@ -600,7 +599,6 @@ int platch_decode_value_std(uint8_t **pbuffer, size_t *premaining, struct std_va
 		case kStdFloat64:
 			ok = _align((uintptr_t*) pbuffer, 8, premaining);
 			if (ok != 0) return ok;
-
 			ok = _read_double(pbuffer, &value_out->float64_value, premaining);
 			if (ok != 0) return ok;
 
