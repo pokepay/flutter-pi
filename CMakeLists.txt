@@ -124,6 +124,7 @@ add_executable(flutter-pi
   src/pixel_format.c
   src/plugins/services.c
   src/plugins/audioplayers/plugin.c
+  src/plugins/audioplayers/player.c
 )
 
 target_link_libraries(flutter-pi
@@ -199,12 +200,14 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
     pkg_check_modules(LIBGSTREAMER_APP gstreamer-app-1.0)
     pkg_check_modules(LIBGSTREAMER_ALLOCATORS gstreamer-allocators-1.0)
     pkg_check_modules(LIBGSTREAMER_VIDEO gstreamer-video-1.0)
+    pkg_check_modules(LIBGSTREAMER-AUDIO REQUIRED gstreamer-audio-1.0)
   else()
     pkg_check_modules(LIBGSTREAMER REQUIRED gstreamer-1.0)
     pkg_check_modules(LIBGSTREAMER_PLUGINS_BASE REQUIRED gstreamer-plugins-base-1.0)
     pkg_check_modules(LIBGSTREAMER_APP REQUIRED gstreamer-app-1.0)
     pkg_check_modules(LIBGSTREAMER_ALLOCATORS REQUIRED gstreamer-allocators-1.0)
     pkg_check_modules(LIBGSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
+    pkg_check_modules(LIBGSTREAMER-AUDIO REQUIRED gstreamer-audio-1.0)
   endif()
 
   if (LIBGSTREAMER_FOUND AND LIBGSTREAMER_PLUGINS_BASE_FOUND AND LIBGSTREAMER_APP_FOUND AND LIBGSTREAMER_ALLOCATORS_FOUND AND LIBGSTREAMER_VIDEO_FOUND)
@@ -220,6 +223,7 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
       ${LIBGSTREAMER_APP_LDFLAGS}
       ${LIBGSTREAMER_ALLOCATORS_LDFLAGS}
       ${LIBGSTREAMER_VIDEO_LDFLAGS}
+      ${LIBGSTREAMER-AUDIO_LIBRARY_DIRS}
     )
     target_include_directories(flutter-pi PRIVATE
       ${LIBGSTREAMER_INCLUDE_DIRS}
@@ -227,6 +231,7 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
       ${LIBGSTREAMER_APP_INCLUDE_DIRS}
       ${LIBGSTREAMER_ALLOCATORS_INCLUDE_DIRS}
       ${LIBGSTREAMER_VIDEO_INCLUDE_DIRS}
+      ${LIBGSTREAMER-AUDIO_INCLUDE_DIRS}
     )
     target_compile_options(flutter-pi PRIVATE
       ${LIBGSTREAMER_CFLAGS}
@@ -234,6 +239,7 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
       ${LIBGSTREAMER_APP_CFLAGS}
       ${LIBGSTREAMER_ALLOCATORS_CFLAGS}
       ${LIBGSTREAMER_VIDEO_CFLAGS}
+      ${LIBGSTREAMER_AUDIO_CFLAGS}
     )
   else()
     message(NOTICE "Couldn't find gstreamer libraries. Gstreamer video player plugin won't be build.")
