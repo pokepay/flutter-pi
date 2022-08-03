@@ -123,6 +123,7 @@ add_executable(flutter-pi
   src/notifier_listener.c
   src/pixel_format.c
   src/plugins/services.c
+  src/plugins/audioplayers/plugin.c
 )
 
 target_link_libraries(flutter-pi
