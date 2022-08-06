@@ -2320,9 +2320,9 @@ static bool setup_paths(void) {
         }
     }
 
-    asprintf(&icu_data_path, "/usr/lib/icudtl.dat");
+    asprintf(&icu_data_path, "%s/icudtl.dat", flutterpi.flutter.asset_bundle_path);
     if (!PATH_EXISTS(icu_data_path)) {
-        LOG_ERROR("Could not find \"icudtl.dat\" file inside \"/usr/lib/\".\n");
+        LOG_ERROR("Could not find \"icudtl.dat\" file inside \"%s\".\n", flutterpi.flutter.asset_bundle_path);
         return false;
     }
 
