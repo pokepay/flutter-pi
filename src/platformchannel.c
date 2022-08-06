@@ -77,7 +77,8 @@ static int _advance(uintptr_t *value, int n_bytes, size_t *remaining) {
 static int _align(uintptr_t *value, int alignment, size_t *remaining) {
     int diff;
 
-	diff = alignment - ((*value) %alignment);
+    alignment--;
+	diff = ((((*value) + alignment) | alignment) - alignment) - *value;
 
     return _advance(value, diff, remaining);
 }
