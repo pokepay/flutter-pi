@@ -108,6 +108,9 @@ pkg_check_modules(LIBINPUT REQUIRED libinput)
 pkg_check_modules(LIBXKBCOMMON REQUIRED xkbcommon)
 pkg_check_modules(LIBUDEV REQUIRED libudev)
 
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+
 add_executable(flutter-pi
   src/flutter-pi.c
   src/platformchannel.c
@@ -125,6 +128,8 @@ add_executable(flutter-pi
   src/plugins/services.c
   src/plugins/audioplayers/plugin.c
   src/plugins/audioplayers/player.c
+  src/plugins/mobile_scanner/msplugin.c
+  src/plugins/mobile_scanner/camera_thread.cc
 )
 
 target_link_libraries(flutter-pi
@@ -246,6 +251,7 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
   endif()
 endif()
 
+target_link_libraries( flutter-pi ${OpenCV_LIBS} )
 # Needed so dart VM can actually resolve symbols in the same
 # executable.
 target_link_options(flutter-pi PRIVATE
