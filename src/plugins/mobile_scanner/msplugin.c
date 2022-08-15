@@ -193,4 +193,4 @@ static int on_event(char *channel, struct platch_obj *object, FlutterPlatformMes
     return 0;
 }
 
-FLUTTERPI_PLUGIN("mobile_scanner flutter-pi", mobile_scanner, mobile_scanner_plugin_init, mobile_scanner_plugin_deinit)
+/* FLUTTERPI_PLUGIN("mobile_scanner flutter-pi", mobile_scanner, mobile_scanner_plugin_init, mobile_scanner_plugin_deinit) */
