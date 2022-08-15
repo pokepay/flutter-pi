@@ -129,25 +129,34 @@ static int start(struct platch_obj *mcall, FlutterPlatformMessageResponseHandle 
     int64_t texture_id;
     (void)mcall;
 
-    texture = flutterpi_create_texture(plugin.flutterpi);
-    if (texture == NULL)
-        return platch_respond_error_std(responsehandle, ERROR_CODE, "Could not create texture.", NULL);
+    LOG_DEBUG(">start()\n");
 
+    texture = flutterpi_create_texture(plugin.flutterpi);
+    if (texture == NULL) {
+        LOG_ERROR("Could not create texture");
+        return platch_respond_error_std(responsehandle, ERROR_CODE, "Could not create texture.", NULL);
+    }
+    LOG_DEBUG(">   getting texture id\n");
     texture_id = texture_get_id(texture);
+    LOG_DEBUG(">   getting width and height id\n");
     double width = CameraThreadState_getWidth(plugin.thread_state);
     double height = CameraThreadState_getHeight(plugin.thread_state);
+    LOG_DEBUG(">   preparing reply\n");
     struct std_value size = STDMAP2(STDSTRING("width"), STDFLOAT64(width), STDSTRING("height"), STDFLOAT64(height));
 
-    pthread_create(&plugin.handle, 0, camera_thread_main, (void *)plugin.thread_state);
+    /* pthread_create(&plugin.handle, 0, camera_thread_main, (void *)plugin.thread_state); */
 
     // clang-format off
-    return platch_respond_success_std(
+    LOG_DEBUG(">   respond success\n");
+    int res = platch_respond_success_std(
       responsehandle,
       &STDMAP3(STDSTRING("textureId"), STDINT64(texture_id), // --
                STDSTRING("size"),      size,
                STDSTRING("torchable"), STDBOOL(false)));
     // clang format on
 
+    LOG_DEBUG(">   responded, ret = %d\n", res);
+    return res;
 }
 
 static int toggleTorch(struct platch_obj *mcall, FlutterPlatformMessageResponseHandle *responsehandle)
