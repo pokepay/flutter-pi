@@ -89,6 +89,7 @@ enum plugin_init_result mobile_scanner_plugin_init(struct flutterpi *flutterpi, 
     if (res == CAMERA_THREAD_FAILURE)
         goto fail_free_thread_state;
 
+    LOG_DEBUG("Plugin initialized correctly.\n");
     return kInitialized_PluginInitResult;
 
 fail_free_thread_state:
@@ -120,6 +121,7 @@ static int checkPermissions(FlutterPlatformMessageResponseHandle *responsehandle
 
 static int requestPermissions(FlutterPlatformMessageResponseHandle *responsehandle)
 {
+    LOG_DEBUG("request permissions");
     return platch_respond_success_std(responsehandle, &STDBOOL(true));
 }
 
