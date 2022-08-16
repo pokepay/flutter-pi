@@ -289,7 +289,7 @@ static void maybe_deinit(struct gstplayer *player);
 static void fallback_to_sw_decoding(struct gstplayer *player) {
     maybe_deinit(player);
     player->is_currently_falling_back_to_sw_decoding = true;
-    if (!stncmp("camera://", player->video_uri, 9)) {
+    if (!strncmp("camera://", player->video_uri, 9)) {
         init(player, true);
     } else {
         init_camera(player, true);
@@ -835,7 +835,7 @@ static void on_appsink_cbs_destroy(void *userdata) {
 
 static int init_camera(struct gstplayer *player, bool force_sw_decoders) {
     sd_event_source *busfd_event_source;
-    GstElement *pipeline, *sink, *src;
+    GstElement *pipeline, *sink;
     GstBus *bus;
     GstPad *pad;
     GPollFD fd;
