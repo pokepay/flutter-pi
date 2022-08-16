@@ -434,7 +434,7 @@ static void on_bus_message(struct gstplayer *player, GstMessage *msg) {
     GError *error;
     gchar *debug_info;
 
-    LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(message));
+    LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
     DEBUG_TRACE_BEGIN(player, "on_bus_message");
     switch (GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_ERROR:
