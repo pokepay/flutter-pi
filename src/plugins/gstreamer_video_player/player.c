@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <string.h>
 #include <stdint.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -281,13 +282,18 @@ static void update_buffering_state(struct gstplayer *player) {
 }
 
 static int init(struct gstplayer *player, bool force_sw_decoders);
+static int init_camera(struct gstplayer *player, bool force_sw_decoders);
 
 static void maybe_deinit(struct gstplayer *player);
 
 static void fallback_to_sw_decoding(struct gstplayer *player) {
     maybe_deinit(player);
     player->is_currently_falling_back_to_sw_decoding = true;
-    init(player, true);
+    if (!stncmp("camera://", player->video_uri, 9)) {
+        init(player, true);
+    } else {
+        init_camera(player, true);
+    }
 }
 
 static int apply_playback_state(struct gstplayer *player) {
@@ -827,6 +833,119 @@ static void on_appsink_cbs_destroy(void *userdata) {
     (void) player;
 }
 
+static int init_camera(struct gstplayer *player, bool force_sw_decoders) {
+    sd_event_source *busfd_event_source;
+    GstElement *pipeline, *sink, *src;
+    GstBus *bus;
+    GstPad *pad;
+    GPollFD fd;
+    GError *error = NULL;
+    int ok;
+
+    static const char *pipeline_descr = "libcamerasrc ! video/x-raw,framerate=30/1 ! appsink sync=true name=\"sink\"";
+
+    pipeline = gst_parse_launch(pipeline_descr, &error);
+    if (pipeline == NULL) {
+        LOG_ERROR("Could create GStreamer pipeline from description: %s (pipeline: `%s`)\n", error->message, pipeline_descr);
+        return error->code;
+    }
+
+    sink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
+    if (sink == NULL) {
+        LOG_ERROR("Couldn't find appsink in pipeline bin.\n");
+        ok = EINVAL;
+        goto fail_unref_pipeline;
+    }
+
+    pad = gst_element_get_static_pad(sink, "sink");
+    if (pad == NULL) {
+        LOG_ERROR("Couldn't get static pad \"sink\" from video sink.\n");
+        ok = EINVAL;
+        goto fail_unref_sink;
+    }
+
+    gst_pad_add_probe(
+        pad,
+        GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM,
+        on_query_appsink,
+        player,
+        NULL
+    );
+
+    /* src = gst_bin_get_by_name(GST_BIN(pipeline), "src"); */
+    /* if (src == NULL) { */
+    /*     LOG_ERROR("Couldn't find uridecodebin in pipeline bin.\n"); */
+    /*     ok = EINVAL; */
+    /*     goto fail_unref_sink; */
+    /* } */
+
+    /* g_object_set(G_OBJECT(src), "uri", player->video_uri, "force-sw-decoders", force_sw_decoders, NULL); */
+
+    gst_base_sink_set_max_lateness(GST_BASE_SINK(sink), 20 * GST_MSECOND);
+    gst_base_sink_set_qos_enabled(GST_BASE_SINK(sink), TRUE);
+    gst_app_sink_set_max_buffers(GST_APP_SINK(sink), 2);
+    gst_app_sink_set_emit_signals(GST_APP_SINK(sink), TRUE);
+    gst_app_sink_set_drop(GST_APP_SINK(sink), FALSE);
+
+    gst_app_sink_set_callbacks(
+        GST_APP_SINK(sink),
+        &(GstAppSinkCallbacks) {
+            .eos = on_appsink_eos,
+            .new_preroll = on_appsink_new_preroll,
+            .new_sample = on_appsink_new_sample,
+            ._gst_reserved = {0}
+        },
+        player,
+        on_appsink_cbs_destroy
+    );
+
+    gst_pad_add_probe(
+        pad,
+        GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+        on_probe_pad,
+        player,
+        NULL
+    );
+
+    /* g_signal_connect(src, "element-added", G_CALLBACK(on_element_added), player); */
+
+    bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
+
+    gst_bus_get_pollfd(bus, &fd);
+
+    flutterpi_sd_event_add_io(
+        &busfd_event_source,
+        fd.fd,
+        EPOLLIN,
+        on_bus_fd_ready,
+        player
+    );
+
+    LOG_DEBUG("Setting state to paused...\n");
+    gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PAUSED);
+
+    player->sink = sink;
+    /// FIXME: Not sure we need this here. pipeline is floating after gst_parse_launch, which
+    /// means we should take a reference, but the examples don't increase the refcount.
+    player->pipeline = pipeline; //gst_object_ref(pipeline);
+    player->bus = bus;
+    player->busfd_events = busfd_event_source;
+    player->is_forcing_sw_decoding = force_sw_decoders;
+
+    /* gst_object_unref(src); */
+    gst_object_unref(pad);
+    return 0;
+
+    fail_unref_sink:
+    gst_object_unref(sink);
+
+    fail_unref_pipeline:
+    gst_object_unref(pipeline);
+
+    return ok;
+}
+
+
 static int init(struct gstplayer *player, bool force_sw_decoders) {
     sd_event_source *busfd_event_source;
     GstElement *pipeline, *sink, *src;
@@ -1161,7 +1280,10 @@ void *gstplayer_get_userdata_locked(struct gstplayer *player) {
 }
 
 int gstplayer_initialize(struct gstplayer *player) {
-    return init(player, false);
+    if (!strncmp("camera://", player->video_uri, 9))
+        return init(player, false);
+    else
+        return init_camera(player, false);
 }
 
 int gstplayer_play(struct gstplayer *player) {
