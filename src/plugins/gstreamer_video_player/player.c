@@ -290,9 +290,9 @@ static void fallback_to_sw_decoding(struct gstplayer *player) {
     maybe_deinit(player);
     player->is_currently_falling_back_to_sw_decoding = true;
     if (!strncmp("camera://", player->video_uri, 9)) {
-        init(player, true);
-    } else {
         init_camera(player, true);
+    } else {
+        init(player, true);
     }
 }
 
@@ -1281,9 +1281,9 @@ void *gstplayer_get_userdata_locked(struct gstplayer *player) {
 
 int gstplayer_initialize(struct gstplayer *player) {
     if (!strncmp("camera://", player->video_uri, 9))
-        return init(player, false);
-    else
         return init_camera(player, false);
+    else
+        return init(player, false);
 }
 
 int gstplayer_play(struct gstplayer *player) {
