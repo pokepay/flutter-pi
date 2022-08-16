@@ -868,6 +868,7 @@ static int on_play(
     struct gstplayer *player;
     struct std_value *arg;
     int ok;
+    LOG_DEBUG("on_play()\n");
 
     (void) channel;
 
