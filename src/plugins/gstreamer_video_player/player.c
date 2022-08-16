@@ -205,7 +205,8 @@ static void fetch_duration(struct gstplayer *player) {
         player->info.info.duration_ms = GST_TIME_AS_MSECONDS(1000 * 3600);
         player->info.has_duration = true;
         // FIXME end
-        LOG_ERROR("Could not fetch duration. (gst_element_query_duration)\n");
+        LOG_DEBUG("Could not fetch duration, returning garbage (1h)\n");
+        /* LOG_ERROR("Could not fetch duration. (gst_element_query_duration)\n"); */
         return;
     }
 
