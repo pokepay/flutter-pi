@@ -355,6 +355,7 @@ struct video_frame *frame_new(
 
     egl_image = interface->eglCreateImageKHR(interface->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attributes);
     if (egl_image == EGL_NO_IMAGE_KHR) {
+        LOG_ERROR("could not create egl image\n");
         goto fail_close_dmabuf_fd;
     }
 
@@ -403,6 +404,7 @@ struct video_frame *frame_new(
 
     free(dmabuf_fd);
     free(memory);
+    LOG_DEBUG("frame created\n");
     return frame;
 
     fail_delete_texture:
