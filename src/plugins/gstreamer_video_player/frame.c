@@ -258,6 +258,7 @@ struct video_frame *frame_new(
     PUT_ATTR(EGL_WIDTH, width);
     PUT_ATTR(EGL_HEIGHT, height);
     PUT_ATTR(EGL_LINUX_DRM_FOURCC_EXT, info->drm_format);
+    LOG_DEBUG("drm_format: %.s\n", 4, (char *)(&drm_format));
 
     // if we have a color space, put that too
     // could be one of EGL_ITU_REC601_EXT, EGL_ITU_REC709_EXT or EGL_ITU_REC2020_EXT
