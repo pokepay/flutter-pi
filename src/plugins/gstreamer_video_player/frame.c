@@ -1,3 +1,4 @@
+#include "collection.h"
 #include <EGL/egl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -204,6 +205,9 @@ struct video_frame *frame_new(
     }
 
     n_mems = gst_buffer_n_memory(buffer);
+    if (n_mems > 1) {
+        LOG_DEBUG("Number of DMA Buffers: %d\n", n_mems);
+    }
 
     width = GST_VIDEO_INFO_WIDTH(info->gst_info);
     height = GST_VIDEO_INFO_HEIGHT(info->gst_info);
@@ -258,7 +262,6 @@ struct video_frame *frame_new(
     PUT_ATTR(EGL_WIDTH, width);
     PUT_ATTR(EGL_HEIGHT, height);
     PUT_ATTR(EGL_LINUX_DRM_FOURCC_EXT, info->drm_format);
-    LOG_DEBUG("drm_format: %.*s\n", 4, (char *)(&info->drm_format));
 
     // if we have a color space, put that too
     // could be one of EGL_ITU_REC601_EXT, EGL_ITU_REC709_EXT or EGL_ITU_REC2020_EXT
