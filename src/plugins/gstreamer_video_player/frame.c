@@ -1,3 +1,4 @@
+#include <EGL/egl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -355,7 +356,8 @@ struct video_frame *frame_new(
 
     egl_image = interface->eglCreateImageKHR(interface->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attributes);
     if (egl_image == EGL_NO_IMAGE_KHR) {
-        LOG_ERROR("could not create egl image\n");
+        int err = eglGetError();
+        LOG_ERROR("could not create egl image (err = %d)\n", err);
         goto fail_close_dmabuf_fd;
     }
 
