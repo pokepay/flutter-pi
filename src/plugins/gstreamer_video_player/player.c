@@ -848,7 +848,7 @@ static int init_camera(struct gstplayer *player, bool force_sw_decoders) {
     GError *error = NULL;
     int ok;
 
-    static const char *pipeline_descr = "libcamerasrc ! queue ! video/x-raw,framerate=30/1 ! appsink sync=true name=\"sink\"";
+    static const char *pipeline_descr = "libcamerasrc ! queue ! video/x-raw,framerate=30/1 ! videoconvert ! appsink sync=true name=\"sink\"";
 
     pipeline = gst_parse_launch(pipeline_descr, &error);
     if (pipeline == NULL) {
