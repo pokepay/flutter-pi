@@ -179,13 +179,13 @@ struct video_frame *frame_new(
     EGLBoolean egl_ok;
     EGLImage egl_image;
     GstBuffer *buffer;
-    GstMemory *memory;
+    GstMemory **memory;
     GLenum gl_error;
     EGLint attributes[2*7 + MAX_N_PLANES*2*5 + 1], *attr_cursor;
     GLuint texture;
     EGLint egl_error;
     bool is_dmabuf_memory;
-    int dmabuf_fd, n_mems, n_planes, width, height;
+    int *dmabuf_fd, n_mems, n_planes, width, height;
 
     struct {
         int fd;
@@ -202,33 +202,39 @@ struct video_frame *frame_new(
         goto fail_unref_buffer;
     }
 
-    memory = gst_buffer_peek_memory(buffer, 0);
-    is_dmabuf_memory = gst_is_dmabuf_memory(memory);
     n_mems = gst_buffer_n_memory(buffer);
-
-    /// TODO: Do we really need to dup() here?
-    if (is_dmabuf_memory) {
-        dmabuf_fd = dup(gst_dmabuf_memory_get_fd(memory));
-    } else {
-        dmabuf_fd = dup_gst_buffer_as_dmabuf(interface->gbm_device, buffer);
-        
-        //LOG_ERROR("Only dmabuf memory is supported for video frame buffers right now, but gstreamer didn't provide a dmabuf memory buffer.\n");
-        //goto fail_free_frame;
-    }
 
     width = GST_VIDEO_INFO_WIDTH(info->gst_info);
     height = GST_VIDEO_INFO_HEIGHT(info->gst_info);
     n_planes = GST_VIDEO_INFO_N_PLANES(info->gst_info);
 
-    if (n_mems > 1) {
+    if (n_planes != n_mems && n_mems > 1) {
         LOG_ERROR("Multiple dmabufs for a single frame buffer is not supported right now. planes: %d (bufs: %d)\n", n_planes, n_mems);
         goto fail_free_frame;
     }
 
+    memory = malloc(sizeof(GstMemory*) * n_mems);
+    dmabuf_fd = malloc(sizeof(int) * n_mems);
+    for (int i = 0; i < n_mems; i++) {
+        memory[i] = gst_buffer_peek_memory(buffer, i);
+        is_dmabuf_memory = gst_is_dmabuf_memory(memory[i]);
+        if (is_dmabuf_memory) {
+            dmabuf_fd[i] = dup(gst_dmabuf_memory_get_fd(memory[i]));
+        } else {
+            dmabuf_fd[i] = dup_gst_buffer_as_dmabuf(interface->gbm_device, buffer);
+
+            // LOG_ERROR("Only dmabuf memory is supported for video frame buffers right now, but gstreamer didn't provide a dmabuf
+            // memory buffer.\n"); goto fail_free_frame;
+        }
+    }
+
+    /// TODO: Do we really need to dup() here?
+
+
     meta = gst_buffer_get_video_meta(buffer);
     if (meta != NULL) {
         for (int i = 0; i < n_planes; i++) {
-            planes[i].fd = dmabuf_fd;
+            planes[i].fd = dmabuf_fd[n_mems > 1 ? i : 0];
             planes[i].offset = meta->offset[i];
             planes[i].pitch = meta->stride[i];
             planes[i].has_modifier = false;
@@ -236,7 +242,7 @@ struct video_frame *frame_new(
         }
     } else {
         for (int i = 0; i < n_planes; i++) {
-            planes[i].fd = dmabuf_fd;
+            planes[i].fd = dmabuf_fd[n_mems > 1 ? i : 0];
             planes[i].offset = GST_VIDEO_INFO_PLANE_OFFSET(info->gst_info, i);
             planes[i].pitch = GST_VIDEO_INFO_PLANE_STRIDE(info->gst_info, i);
             planes[i].has_modifier = false;
@@ -393,6 +399,8 @@ struct video_frame *frame_new(
     frame->gl_frame.width = 0;
     frame->gl_frame.height = 0;
 
+    free(dmabuf_fd);
+    free(memory);
     return frame;
 
     fail_delete_texture:
@@ -406,7 +414,10 @@ struct video_frame *frame_new(
     interface->eglDestroyImageKHR(interface->display, egl_image);
 
     fail_close_dmabuf_fd:
-    close(dmabuf_fd);
+    for (int i = 0; i < n_mems; i++)
+        close(dmabuf_fd[i]);
+    free(dmabuf_fd);
+    free(memory);
 
     fail_free_frame:
     free(frame);
