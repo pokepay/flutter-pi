@@ -799,8 +799,6 @@ static GstFlowReturn on_appsink_new_sample(GstAppSink *appsink, void *userdata) 
     DEBUG_ASSERT_NOT_NULL(appsink);
     DEBUG_ASSERT_NOT_NULL(userdata);
 
-    LOG_DEBUG("new sample\n");
-
     player = userdata;
 
     sample = gst_app_sink_try_pull_sample(appsink, 0);
