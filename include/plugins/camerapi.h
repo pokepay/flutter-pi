@@ -1,72 +1,13 @@
-#ifndef _FLUTTERPI_INCLUDE_PLUGINS_OMXPLAYER_VIDEO_PLUGIN_H
-#define _FLUTTERPI_INCLUDE_PLUGINS_OMXPLAYER_VIDEO_PLUGIN_H
+#ifndef _FLUTTERPI_INCLUDE_PLUGINS_CAMERAPI_PLUGIN_H
+#define _FLUTTERPI_INCLUDE_PLUGINS_CAMERAPI_PLUGIN_H
 
+#include "gstreamer_video_player.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <collection.h>
 
-enum format_hint
-{
-    kNoFormatHint,
-    kMpegDash_FormatHint,
-    kHLS_FormatHint,
-    kSS_FormatHint,
-    kOther_FormatHint
-};
-
-enum buffering_mode
-{
-    kStream,
-    kDownload,
-    kTimeshift,
-    kLive
-};
-
-struct buffering_range
-{
-    int64_t start_ms;
-    int64_t stop_ms;
-};
-
-struct buffering_state
-{
-    // The percentage that the buffer is filled.
-    // If this is 100 playback will resume.
-    int percent;
-
-    // The buffering mode currently used by the pipeline.
-    enum buffering_mode mode;
-
-    // The average input / consumption speed in bytes per second.
-    int avg_in, avg_out;
-
-    // Time left till buffering finishes, in ms.
-    // 0 means not buffering right now.
-    int64_t time_left_ms;
-
-    // The ranges of already buffered video.
-    // For the kDownload and kTimeshift buffering modes, this specifies the ranges
-    // where efficient seeking is possible.
-    // For the kStream and kLive buffering modes, this describes the oldest and
-    // newest item in the buffer.
-    int n_ranges;
-
-    // Flexible array member.
-    // For example, if n_ranges is 2, just allocate using
-    // `state = malloc(sizeof(struct buffering_state) + 2*sizeof(struct buffering_range))`
-    // and we can use state->ranges[0] and so on.
-    // This is cool because we don't need to allocate two blocks of memory and we can just call
-    // `free` once to free the whole thing.
-    // More precisely, we don't need to define a new function we can give to value_notifier_init
-    // as the value destructor, we can just use `free`.
-    struct buffering_range ranges[];
-};
-
-#define BUFFERING_STATE_SIZE(n_ranges) (sizeof(struct buffering_state) + (n_ranges) * sizeof(struct buffering_range))
-
-struct video_info;
 struct camerapi;
 struct flutterpi;
 
@@ -187,60 +128,5 @@ struct notifier *camerapi_get_buffering_state_notifier(struct camerapi *player);
 ///
 /// Gets notified when an error happens. (Not yet implemented)
 struct notifier *camerapi_get_error_notifier(struct camerapi *player);
-
-struct video_frame;
-
-struct frame_interface
-{
-    struct gbm_device *gbm_device;
-    EGLDisplay display;
-
-    pthread_mutex_t context_lock;
-    EGLContext context;
-    PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-    PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-
-    bool supports_extended_imports;
-    PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
-    PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
-
-    refcount_t n_refs;
-};
-
-struct frame_interface *frame_interface_new();
-
-DEFINE_INLINE_LOCK_OPS(frame_interface, context_lock)
-
-DECLARE_REF_OPS(frame_interface)
-
-typedef struct _GstVideoInfo GstVideoInfo;
-typedef struct _GstVideoMeta GstVideoMeta;
-
-struct video_info
-{
-    int width, height;
-    double fps;
-    int64_t duration_ms;
-    bool can_seek;
-    int64_t seek_begin_ms, seek_end_ms;
-};
-
-struct frame_info
-{
-    const GstVideoInfo *gst_info;
-    uint32_t drm_format;
-    EGLint egl_color_space;
-};
-
-struct _GstSample;
-
-struct video_frame *frame_new(struct frame_interface *interface, const struct frame_info *meta, struct _GstSample *sample);
-
-void frame_destroy(struct video_frame *frame);
-
-struct gl_texture_frame;
-
-const struct gl_texture_frame *frame_get_gl_frame(struct video_frame *frame);
 
 #endif
