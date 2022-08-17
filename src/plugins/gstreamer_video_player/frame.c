@@ -216,14 +216,14 @@ struct video_frame *frame_new(
         //goto fail_free_frame;
     }
 
-    if (n_mems > 1) {
-        LOG_ERROR("Multiple dmabufs for a single frame buffer is not supported right now.\n");
-        goto fail_free_frame;
-    }
-
     width = GST_VIDEO_INFO_WIDTH(info->gst_info);
     height = GST_VIDEO_INFO_HEIGHT(info->gst_info);
     n_planes = GST_VIDEO_INFO_N_PLANES(info->gst_info);
+
+    if (n_mems > 1) {
+        LOG_ERROR("Multiple dmabufs for a single frame buffer is not supported right now. planes: %d (bufs: %d)\n", n_planes, n_mems);
+        goto fail_free_frame;
+    }
 
     meta = gst_buffer_get_video_meta(buffer);
     if (meta != NULL) {
