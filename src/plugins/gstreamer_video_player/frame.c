@@ -205,9 +205,7 @@ struct video_frame *frame_new(
     }
 
     n_mems = gst_buffer_n_memory(buffer);
-    if (n_mems > 1) {
-        LOG_DEBUG("Number of DMA Buffers: %d\n", n_mems);
-    }
+    LOG_DEBUG("Number of DMA Buffers: %d\n", n_mems);
 
     width = GST_VIDEO_INFO_WIDTH(info->gst_info);
     height = GST_VIDEO_INFO_HEIGHT(info->gst_info);
@@ -410,7 +408,6 @@ struct video_frame *frame_new(
 
     free(dmabuf_fd);
     free(memory);
-    LOG_DEBUG("frame created\n");
     return frame;
 
     fail_delete_texture:
