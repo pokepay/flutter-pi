@@ -390,8 +390,10 @@ struct video_frame *frame_new(
     frame->sample = sample;
     frame->interface = frame_interface_ref(interface);
     frame->drm_format = info->drm_format;
-    frame->n_dmabuf_fds = 1;
-    frame->dmabuf_fds[0] = dmabuf_fd;
+    frame->n_dmabuf_fds = n_mems;
+    for (int i = 0; i < n_mems; i++) {
+        frame->dmabuf_fds[i] = dmabuf_fd[i];
+    }
     frame->image = egl_image;
     frame->gl_frame.target = GL_TEXTURE_EXTERNAL_OES;
     frame->gl_frame.name = texture;
