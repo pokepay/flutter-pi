@@ -17,7 +17,7 @@
 #include <plugins/camerapi.h>
 #include <texture_registry.h>
 
-FILE_DESCR("gstreamer video_player plugin")
+FILE_DESCR("camerapi plugin")
 
 enum data_source_type
 {
