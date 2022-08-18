@@ -934,7 +934,7 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
         goto fail_unref_pipeline;
     }
 
-    pad = gst_element_get_static_pad(sink, "camerasink");
+    pad = gst_element_get_static_pad(sink, "sink");
     if (pad == NULL) {
         LOG_ERROR("Couldn't get static pad \"camerasink\" from video sink.\n");
         ok = EINVAL;
