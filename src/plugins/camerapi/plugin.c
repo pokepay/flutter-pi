@@ -515,92 +515,19 @@ static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMe
 {
     struct camerapi_meta *meta;
     struct camerapi *player;
-    struct std_value *arg, *temp;
+    struct std_value *temp;
     enum format_hint format_hint;
-    char *asset, *uri, *package_name;
     int ok;
 
     (void)channel;
-
-    arg = &(object->std_value);
+    (void)object;
 
     ok = ensure_initialized();
     if (ok != 0) {
         return respond_init_failed(responsehandle);
     }
 
-    if (!STDVALUE_IS_MAP(*arg)) {
-        return platch_respond_illegal_arg_ext_pigeon(responsehandle, "Expected `arg` to be a Map, but was:", arg);
-    }
-
-    temp = stdmap_get_str(arg, "asset");
-    if (temp == NULL || temp->type == kStdNull) {
-        asset = NULL;
-    } else if (temp != NULL && temp->type == kStdString) {
-        asset = temp->string_value;
-    } else {
-        return platch_respond_illegal_arg_ext_pigeon(
-          responsehandle, "Expected `arg['asset']` to be a String or null, but was:", temp);
-    }
-
-    temp = stdmap_get_str(arg, "uri");
-    if (temp == NULL || temp->type == kStdNull) {
-        uri = NULL;
-    } else if (temp != NULL && temp->type == kStdString) {
-        uri = temp->string_value;
-    } else {
-        return platch_respond_illegal_arg_ext_pigeon(
-          responsehandle, "Expected `arg['uri']` to be a String or null, but was:", temp);
-    }
-
-    temp = stdmap_get_str(arg, "packageName");
-    if (temp == NULL || temp->type == kStdNull) {
-        package_name = NULL;
-    } else if (temp != NULL && temp->type == kStdString) {
-        package_name = temp->string_value;
-    } else {
-        return platch_respond_illegal_arg_ext_pigeon(
-          responsehandle, "Expected `arg['packageName']` to be a String or null, but was:", temp);
-    }
-
-    temp = stdmap_get_str(arg, "formatHint");
-    if (temp == NULL || temp->type == kStdNull) {
-        format_hint = kNoFormatHint;
-    } else if (temp != NULL && temp->type == kStdString) {
-        char *format_hint_str = temp->string_value;
-
-        if STREQ ("ss", format_hint_str) {
-            format_hint = kSS_FormatHint;
-        } else if STREQ ("hls", format_hint_str) {
-            format_hint = kHLS_FormatHint;
-        } else if STREQ ("dash", format_hint_str) {
-            format_hint = kMpegDash_FormatHint;
-        } else if STREQ ("other", format_hint_str) {
-            format_hint = kOther_FormatHint;
-        } else {
-            goto invalid_format_hint;
-        }
-    } else {
-    invalid_format_hint:
-
-        return platch_respond_illegal_arg_ext_pigeon(
-          responsehandle, "Expected `arg['formatHint']` to be one of 'ss', 'hls', 'dash', 'other' or null, but was:", temp);
-    }
-
-    temp = stdmap_get_str(arg, "httpHeaders");
-
-    // check our headers are valid, so we don't create our player for nothing
-    ok = check_headers(temp, responsehandle);
-    if (ok != 0) {
-        return 0;
-    }
-
-    // create our actual player (this doesn't initialize it)
-    if (asset != NULL) {
-        player = camerapi_new_from_asset(&flutterpi, asset, package_name, NULL);
-    } else {
-        player = camerapi_new_from_network(&flutterpi, uri, format_hint, NULL);
-    }
+    player = camerapi_new(&flutterpi, NULL);
     if (player == NULL) {
         LOG_ERROR("Couldn't create gstreamer video player.\n");
         ok = EIO;

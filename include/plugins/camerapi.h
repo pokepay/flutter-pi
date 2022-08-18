@@ -17,24 +17,9 @@ struct camera_video_info
 struct camerapi;
 struct flutterpi;
 
-/// Create a gstreamer video player that loads the video from a flutter asset.
-///     @arg asset_path     The path of the asset inside the asset bundle.
-///     @arg package_name   The name of the package containing the asset
+/// Create a camerapi instance.
 ///     @arg userdata       The userdata associated with this player
-struct camerapi *
-camerapi_new_from_asset(struct flutterpi *flutterpi, const char *asset_path, const char *package_name, void *userdata);
-
-/// Create a gstreamer video player that loads the video from a network URI.
-///     @arg uri          The URI to the video. (for example, http://, https://, rtmp://, rtsp://)
-///     @arg format_hint  A hint to the format of the video. kNoFormatHint means there's no hint.
-///     @arg userdata     The userdata associated with this player.
-struct camerapi *
-camerapi_new_from_network(struct flutterpi *flutterpi, const char *uri, enum format_hint format_hint, void *userdata);
-
-/// Create a gstreamer video player that loads the video from a file URI.
-///     @arg uri        The file:// URI to the video.
-///     @arg userdata   The userdata associated with this player.
-struct camerapi *camerapi_new_from_file(struct flutterpi *flutterpi, const char *uri, void *userdata);
+struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata);
 
 /// Destroy this gstreamer player instance and the resources
 /// associated with it. (texture, gstreamer pipeline, etc)

@@ -82,33 +82,12 @@ struct camerapi
 
     struct flutterpi *flutterpi;
     void *userdata;
-    char *video_uri;
-    GstStructure *headers;
 
     /**
      * @brief The desired playback state. Either paused, playing, or single-frame stepping.
      *
      */
     enum playpause_state playpause_state;
-
-    /**
-     * @brief The desired playback direction.
-     *
-     */
-    enum playback_direction direction;
-
-    /**
-     * @brief The position reported if gstreamer position queries fail (for example, because gstreamer is currently
-     * seeking to a new position. In that case, fallback_position_ms will be the seeking target position, so we report the
-     * new position while we're seeking to it)
-     */
-    int64_t fallback_position_ms;
-
-    /**
-     * @brief True if there's a position that apply_playback_state should seek to.
-     *
-     */
-    bool has_desired_position;
 
     bool is_forcing_sw_decoding;
     bool is_currently_falling_back_to_sw_decoding;
@@ -249,8 +228,6 @@ static int apply_playback_state(struct camerapi *player)
 {
     GstStateChangeReturn ok;
     GstState desired_state, current_state, pending_state;
-    double desired_rate;
-    int64_t position;
 
     // if we're currently falling back to software decoding, don't do anything.
     if (player->is_currently_falling_back_to_sw_decoding) {
@@ -849,14 +826,12 @@ static void maybe_deinit(struct camerapi *player)
 
 DEFINE_LOCK_OPS(camerapi, lock)
 
-static struct camerapi *camerapi_new(struct flutterpi *flutterpi, const char *uri, void *userdata)
+struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata)
 {
     struct frame_interface *frame_interface;
     struct camerapi *player;
     struct texture *texture;
-    GstStructure *gst_headers;
     int64_t texture_id;
-    char *uri_owned;
     int ok;
 
     player = malloc(sizeof *player);
@@ -873,15 +848,9 @@ static struct camerapi *camerapi_new(struct flutterpi *flutterpi, const char *ur
 
     texture_id = texture_get_id(texture);
 
-    uri_owned = strdup(uri);
-    if (uri_owned == NULL)
-        goto fail_destroy_frame_interface;
-
-    gst_headers = gst_structure_new_empty("http-headers");
-
     ok = pthread_mutex_init(&player->lock, NULL);
     if (ok != 0)
-        goto fail_free_gst_headers;
+        goto fail_destroy_frame_interface;
 
     ok = value_notifier_init(&player->video_info_notifier, NULL, free /* free(NULL) is a no-op, I checked */);
     if (ok != 0)
@@ -897,12 +866,7 @@ static struct camerapi *camerapi_new(struct flutterpi *flutterpi, const char *ur
 
     player->flutterpi = flutterpi;
     player->userdata = userdata;
-    player->video_uri = uri_owned;
-    player->headers = gst_headers;
     player->playpause_state = kPaused;
-    player->direction = kForward;
-    player->fallback_position_ms = 0;
-    player->has_desired_position = false;
     player->is_forcing_sw_decoding = false;
     player->is_currently_falling_back_to_sw_decoding = false;
     player->has_sent_info = false;
@@ -932,10 +896,6 @@ fail_deinit_video_info_notifier:
 fail_destroy_mutex:
     pthread_mutex_destroy(&player->lock);
 
-fail_free_gst_headers:
-    gst_structure_free(gst_headers);
-    free(uri_owned);
-
 fail_destroy_frame_interface:
     frame_interface_unref(frame_interface);
 
@@ -948,43 +908,6 @@ fail_free_player:
     return NULL;
 }
 
-struct camerapi *
-camerapi_new_from_asset(struct flutterpi *flutterpi, const char *asset_path, const char *package_name, void *userdata)
-{
-    struct camerapi *player;
-    char *uri;
-
-    (void)package_name;
-
-    asprintf(&uri, "file://%s/%s", flutterpi_get_asset_bundle_path(flutterpi), asset_path);
-    if (uri == NULL) {
-        return NULL;
-    }
-
-    player = camerapi_new(flutterpi, uri, userdata);
-
-    free(uri);
-
-    return player;
-}
-
-struct camerapi *
-camerapi_new_from_network(struct flutterpi *flutterpi, const char *uri, enum format_hint format_hint, void *userdata)
-{
-    (void)format_hint;
-    return camerapi_new(flutterpi, uri, userdata);
-}
-
-struct camerapi *camerapi_new_from_file(struct flutterpi *flutterpi, const char *uri, void *userdata)
-{
-    return camerapi_new(flutterpi, uri, userdata);
-}
-
-struct camerapi *camerapi_new_from_content_uri(struct flutterpi *flutterpi, const char *uri, void *userdata)
-{
-    return camerapi_new(flutterpi, uri, userdata);
-}
-
 void camerapi_destroy(struct camerapi *player)
 {
     LOG_DEBUG("camerapi_destroy(%p)\n", player);
@@ -993,9 +916,6 @@ void camerapi_destroy(struct camerapi *player)
     notifier_deinit(&player->error_notifier);
     maybe_deinit(player);
     pthread_mutex_destroy(&player->lock);
-    if (player->headers != NULL)
-        gst_structure_free(player->headers);
-    free(player->video_uri);
     frame_interface_unref(player->frame_interface);
     texture_destroy(player->texture);
     free(player);
@@ -1004,13 +924,6 @@ void camerapi_destroy(struct camerapi *player)
 int64_t camerapi_get_texture_id(struct camerapi *player)
 {
     return player->texture_id;
-}
-
-void camerapi_put_http_header(struct camerapi *player, const char *key, const char *value)
-{
-    GValue gvalue = G_VALUE_INIT;
-    g_value_set_string(&gvalue, value);
-    gst_structure_take_value(player->headers, key, &gvalue);
 }
 
 void camerapi_set_userdata_locked(struct camerapi *player, void *userdata)
@@ -1032,7 +945,6 @@ int camerapi_play(struct camerapi *player)
 {
     LOG_DEBUG("camerapi_play()\n");
     player->playpause_state = kPlaying;
-    player->direction = kForward;
     return apply_playback_state(player);
 }
 
@@ -1040,7 +952,6 @@ int camerapi_pause(struct camerapi *player)
 {
     LOG_DEBUG("camerapi_pause()\n");
     player->playpause_state = kPaused;
-    player->direction = kForward;
     return apply_playback_state(player);
 }
 
