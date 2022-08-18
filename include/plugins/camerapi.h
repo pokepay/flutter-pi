@@ -61,14 +61,6 @@ int camerapi_initialize(struct camerapi *player);
 // struct sd_event_source_generic *camerapi_probe_video_info(struct camerapi *player, camerapi_info_callback_t callback, void
 // *userdata);
 
-/// Set the current playback state to "playing" if that's not the case already.
-///     @returns 0 if initialization was successfull, errno-style error code if an error ocurred.
-int camerapi_play(struct camerapi *player);
-
-/// Sets the current playback state to "paused" if that's not the case already.
-///     @returns 0 if initialization was successfull, errno-style error code if an error ocurred.
-int camerapi_pause(struct camerapi *player);
-
 /// @brief Get the value notifier for the video info.
 ///
 /// Gets notified with a value of type `struct video_info*` when the video info changes.

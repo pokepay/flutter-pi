@@ -1,3 +1,4 @@
+#include "gst/gstelement.h"
 #define _GNU_SOURCE
 
 #include <inttypes.h>
@@ -57,37 +58,12 @@ struct incomplete_video_info
     struct camera_video_info info;
 };
 
-enum playpause_state
-{
-    kPaused,
-    kPlaying,
-    kStepping
-};
-
-enum playback_direction
-{
-    kForward,
-    kBackward
-};
-
-#define PLAYPAUSE_STATE_AS_STRING(playpause_state) \
-    ((playpause_state) == kPaused     ? "paused"   \
-     : (playpause_state) == kPlaying  ? "playing"  \
-     : (playpause_state) == kStepping ? "stepping" \
-                                      : "?")
-
 struct camerapi
 {
     pthread_mutex_t lock;
 
     struct flutterpi *flutterpi;
     void *userdata;
-
-    /**
-     * @brief The desired playback state. Either paused, playing, or single-frame stepping.
-     *
-     */
-    enum playpause_state playpause_state;
 
     bool is_forcing_sw_decoding;
     bool is_currently_falling_back_to_sw_decoding;
@@ -227,15 +203,12 @@ static void fallback_to_sw_decoding(struct camerapi *player)
 static int apply_playback_state(struct camerapi *player)
 {
     GstStateChangeReturn ok;
-    GstState desired_state, current_state, pending_state;
+    GstState current_state, pending_state;
 
     // if we're currently falling back to software decoding, don't do anything.
     if (player->is_currently_falling_back_to_sw_decoding) {
         return 0;
     }
-
-    desired_state =
-      player->playpause_state == kPlaying ? GST_STATE_PLAYING : GST_STATE_PAUSED; /* use GST_STATE_PAUSED if we're stepping */
 
     DEBUG_TRACE_BEGIN(player, "gst_element_get_state");
     ok = gst_element_get_state(player->pipeline, &current_state, &pending_state, 0);
@@ -250,23 +223,18 @@ static int apply_playback_state(struct camerapi *player)
     }
 
     if (pending_state == GST_STATE_VOID_PENDING) {
-        if (current_state == desired_state) {
+        if (current_state == GST_STATE_PLAYING) {
             // we're already in the desired state, and we're also not changing it
             // no need to do anything.
-            LOG_DEBUG(
-              "apply_playback_state(playing: %s): already in desired state and none pending\n",
-              PLAYPAUSE_STATE_AS_STRING(player->playpause_state));
+            LOG_DEBUG("apply_playback_state: already in playing state and none pending\n");
             DEBUG_TRACE_END(player, "apply_playback_state");
             return 0;
         }
 
-        LOG_DEBUG(
-          "apply_playback_state(playing: %s): setting state to %s\n",
-          PLAYPAUSE_STATE_AS_STRING(player->playpause_state),
-          gst_element_state_get_name(desired_state));
+        LOG_DEBUG("apply_playback_state: setting state to playing\n");
 
         DEBUG_TRACE_BEGIN(player, "gst_element_set_state");
-        ok = gst_element_set_state(player->pipeline, desired_state);
+        ok = gst_element_set_state(player->pipeline, GST_STATE_PLAYING);
         DEBUG_TRACE_END(player, "gst_element_set_state");
 
         if (ok == GST_STATE_CHANGE_FAILURE) {
@@ -274,17 +242,14 @@ static int apply_playback_state(struct camerapi *player)
             DEBUG_TRACE_END(player, "apply_playback_state");
             return EIO;
         }
-    } else if (pending_state != desired_state) {
+    } else if (pending_state != GST_STATE_PLAYING) {
         // queue to be executed when pending async state change completes
         /// TODO: Implement properly
 
-        LOG_DEBUG(
-          "apply_playback_state(playing: %s): async state change in progress, setting state to %s\n",
-          PLAYPAUSE_STATE_AS_STRING(player->playpause_state),
-          gst_element_state_get_name(desired_state));
+        LOG_DEBUG("apply_playback_state: async state change in progress, setting state to playing\n");
 
         DEBUG_TRACE_BEGIN(player, "gst_element_set_state");
-        ok = gst_element_set_state(player->pipeline, desired_state);
+        ok = gst_element_set_state(player->pipeline, GST_STATE_PLAYING);
         DEBUG_TRACE_END(player, "gst_element_set_state");
 
         if (ok == GST_STATE_CHANGE_FAILURE) {
@@ -475,26 +440,6 @@ static GstPadProbeReturn on_query_appsink(GstPad *pad, GstPadProbeInfo *info, vo
     gst_query_add_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
 
     return GST_PAD_PROBE_HANDLED;
-}
-
-static void on_element_added(GstBin *bin, GstElement *element, void *userdata)
-{
-    GstElementFactory *factory;
-    const char *factory_name;
-
-    (void)userdata;
-    (void)bin;
-
-    factory = gst_element_get_factory(element);
-    factory_name = gst_plugin_feature_get_name(factory);
-
-    if (g_str_has_prefix(factory_name, "v4l2video") && g_str_has_suffix(factory_name, "dec")) {
-        gst_util_set_object_arg(G_OBJECT(element), "capture-io-mode", "dmabuf");
-        fprintf(
-          stderr,
-          "[gstreamer video player] found gstreamer V4L2 video decoder element with name \"%s\"\n",
-          GST_OBJECT_NAME(element));
-    }
 }
 
 static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *userdata)
@@ -866,7 +811,6 @@ struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata)
 
     player->flutterpi = flutterpi;
     player->userdata = userdata;
-    player->playpause_state = kPaused;
     player->is_forcing_sw_decoding = false;
     player->is_currently_falling_back_to_sw_decoding = false;
     player->has_sent_info = false;
@@ -938,20 +882,10 @@ void *camerapi_get_userdata_locked(struct camerapi *player)
 
 int camerapi_initialize(struct camerapi *player)
 {
-    return init_camera(player, false);
-}
-
-int camerapi_play(struct camerapi *player)
-{
-    LOG_DEBUG("camerapi_play()\n");
-    player->playpause_state = kPlaying;
-    return apply_playback_state(player);
-}
-
-int camerapi_pause(struct camerapi *player)
-{
-    LOG_DEBUG("camerapi_pause()\n");
-    player->playpause_state = kPaused;
+    int res = init_camera(player, false);
+    if (res != 0) {
+        return res;
+    }
     return apply_playback_state(player);
 }
 

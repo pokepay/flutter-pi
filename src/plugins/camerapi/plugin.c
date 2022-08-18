@@ -542,43 +542,6 @@ static int on_dispose(char *channel, struct platch_obj *object, FlutterPlatformM
     return platch_respond_success_pigeon(responsehandle, NULL);
 }
 
-static int on_play(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    struct std_value *arg;
-    int ok;
-    LOG_DEBUG("on_play()\n");
-
-    (void)channel;
-
-    arg = &object->std_value;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0)
-        return 0;
-
-    camerapi_play(player);
-    return platch_respond_success_pigeon(responsehandle, NULL);
-}
-
-static int on_pause(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    struct std_value *arg;
-    int ok;
-
-    (void)channel;
-
-    arg = &object->std_value;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0)
-        return 0;
-
-    camerapi_pause(player);
-    return platch_respond_success_pigeon(responsehandle, NULL);
-}
-
 enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void **userdata_out)
 {
     int ok;
@@ -608,26 +571,7 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
         goto fail_remove_create_receiver;
     }
 
-    ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.play", kStandardMessageCodec, on_play);
-    if (ok != 0) {
-        goto fail_remove_dispose_receiver;
-    }
-
-    ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.pause", kStandardMessageCodec, on_pause);
-    if (ok != 0) {
-        goto fail_remove_play_receiver;
-    }
-
     return kInitialized_PluginInitResult;
-
-fail_remove_pause_receiver:
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
-
-fail_remove_play_receiver:
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
-
-fail_remove_dispose_receiver:
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
 
 fail_remove_create_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
@@ -645,8 +589,6 @@ void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
     (void)flutterpi;
     (void)userdata;
 
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.initialize");
