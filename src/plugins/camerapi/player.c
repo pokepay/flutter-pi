@@ -1,4 +1,5 @@
 #include "gst/gstelement.h"
+#include "gst/gstmessage.h"
 #define _GNU_SOURCE
 
 #include <inttypes.h>
@@ -271,6 +272,9 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
 
     LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
     DEBUG_TRACE_BEGIN(player, "on_bus_message");
+    if (gst_message_has_name(msg, "barcode")) {
+        LOG_DEBUG("barcode detected\n");
+    }
     switch (GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_ERROR:
             gst_message_parse_error(msg, &error, &debug_info);
@@ -390,6 +394,7 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             break;
 
         case GST_MESSAGE_APPLICATION:
+            LOG_DEBUG("Application message\n");
             break;
 
         default:
@@ -654,8 +659,9 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
     GError *error = NULL;
     int ok;
 
-    static const char *pipeline_descr = "libcamerasrc ! queue ! videoconvert ! zbar ! video/x-raw,framerate=0/1 ! videoconvert ! "
-                                        "video/x-raw,format=I420 ! appsink sync=true name=\"camerasink\"";
+    static const char *pipeline_descr =
+      "libcamerasrc ! queue ! videoconvert ! zbar name=zbar ! video/x-raw,framerate=0/1 ! videoconvert ! "
+      "video/x-raw,format=I420 ! appsink sync=true name=\"camerasink\"";
 
     pipeline = gst_parse_launch(pipeline_descr, &error);
     if (pipeline == NULL) {
