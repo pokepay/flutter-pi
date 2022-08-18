@@ -8,6 +8,12 @@
 #include <GLES2/gl2ext.h>
 #include <collection.h>
 
+struct camera_video_info
+{
+    int width, height;
+    double fps;
+};
+
 struct camerapi;
 struct flutterpi;
 
@@ -82,10 +88,6 @@ int camerapi_play(struct camerapi *player);
 /// Sets the current playback state to "paused" if that's not the case already.
 ///     @returns 0 if initialization was successfull, errno-style error code if an error ocurred.
 int camerapi_pause(struct camerapi *player);
-
-/// Get the current playback position.
-///     @returns Current playback position, in milliseconds from the beginning of the video.
-int64_t camerapi_get_position(struct camerapi *player);
 
 /// @brief Get the value notifier for the video info.
 ///

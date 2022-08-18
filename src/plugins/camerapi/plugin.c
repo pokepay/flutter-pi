@@ -244,15 +244,13 @@ static int respond_init_failed(FlutterPlatformMessageResponseHandle *handle)
       NULL);
 }
 
-static int send_initialized_event(struct camerapi_meta *meta, bool is_stream, int width, int height, int64_t duration_ms)
+static int send_initialized_event(struct camerapi_meta *meta, int width, int height)
 {
     return platch_send_success_event_std(
       meta->event_channel_name,
-      &STDMAP4(
+      &STDMAP3(
         STDSTRING("event"),
         STDSTRING("initialized"),
-        STDSTRING("duration"),
-        STDINT64(is_stream ? INT64_MAX : duration_ms),
         STDSTRING("width"),
         STDINT32(width),
         STDSTRING("height"),
@@ -293,7 +291,7 @@ static int send_buffering_end(struct camerapi_meta *meta)
 static enum listener_return on_video_info_notify(void *arg, void *userdata)
 {
     struct camerapi_meta *meta;
-    struct video_info *info;
+    struct camera_video_info *info;
 
     DEBUG_ASSERT_NOT_NULL(userdata);
     meta = userdata;
@@ -314,7 +312,7 @@ static enum listener_return on_video_info_notify(void *arg, void *userdata)
 
     /// on_video_info_notify is called on an internal thread,
     /// but send_initialized_event is (should be) mt-safe
-    send_initialized_event(meta, !info->can_seek, info->width, info->height, info->duration_ms);
+    send_initialized_event(meta, info->width, info->height);
 
     /// TODO: We should only send the initialized event once,
     /// but maybe it's also okay if we send it multiple times?
@@ -714,31 +712,6 @@ static int on_play(char *channel, struct platch_obj *object, FlutterPlatformMess
     return platch_respond_success_pigeon(responsehandle, NULL);
 }
 
-static int on_get_position(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    struct std_value *arg;
-    int64_t position;
-    int ok;
-
-    (void)channel;
-    (void)position;
-
-    arg = &object->std_value;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0)
-        return 0;
-
-    position = camerapi_get_position(player);
-
-    if (position >= 0) {
-        return platch_respond_success_pigeon(responsehandle, &STDMAP1(STDSTRING("position"), STDINT64(position)));
-    } else {
-        return platch_respond_error_pigeon(responsehandle, "native-error", "An unexpected gstreamer error ocurred.", NULL);
-    }
-}
-
 static int on_pause(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
 {
     struct camerapi *player;
@@ -806,14 +779,9 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
         goto fail_remove_dispose_receiver;
     }
 
-    ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.position", kStandardMessageCodec, on_get_position);
-    if (ok != 0) {
-        goto fail_remove_play_receiver;
-    }
-
     ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.pause", kStandardMessageCodec, on_pause);
     if (ok != 0) {
-        goto fail_remove_position_receiver;
+        goto fail_remove_play_receiver;
     }
 
     ok = plugin_registry_set_receiver(
@@ -826,10 +794,6 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
 
 fail_remove_pause_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
-
-fail_remove_position_receiver:
-
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.position");
 
 fail_remove_play_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
@@ -855,7 +819,6 @@ void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
 
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.setMixWithOthers");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.position");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
