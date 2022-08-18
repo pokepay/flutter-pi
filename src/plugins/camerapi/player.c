@@ -654,8 +654,8 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
     GError *error = NULL;
     int ok;
 
-    static const char *pipeline_descr = "libcamerasrc ! queue ! video/x-raw,framerate=0/1 ! videoconvert ! "
-                                        "video/x-raw,format=I420 ! queue ! zbar ! appsink sync=true name=\"camerasink\"";
+    static const char *pipeline_descr = "libcamerasrc ! queue ! videoconvert ! zbar ! video/x-raw,framerate=0/1 ! videoconvert ! "
+                                        "video/x-raw,format=I420 ! appsink sync=true name=\"camerasink\"";
 
     pipeline = gst_parse_launch(pipeline_descr, &error);
     if (pipeline == NULL) {
