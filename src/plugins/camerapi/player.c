@@ -1237,12 +1237,12 @@ int camerapi_pause(struct camerapi *player)
     return apply_playback_state(player);
 }
 
-int camerapi_set_looping(struct camerapi *player, bool looping)
-{
-    LOG_DEBUG("camerapi_set_looping(%s)\n", looping ? "true" : "false");
-    player->looping = looping;
-    return 0;
-}
+/* int camerapi_set_looping(struct camerapi *player, bool looping) */
+/* { */
+/*     LOG_DEBUG("camerapi_set_looping(%s)\n", looping ? "true" : "false"); */
+/*     player->looping = looping; */
+/*     return 0; */
+/* } */
 
 int camerapi_set_volume(struct camerapi *player, double volume)
 {
@@ -1300,13 +1300,13 @@ int camerapi_seek_to(struct camerapi *player, int64_t position, bool nearest_key
     return apply_playback_state(player);
 }
 
-int camerapi_set_playback_speed(struct camerapi *player, double playback_speed)
-{
-    LOG_DEBUG("camerapi_set_playback_speed(%f)\n", playback_speed);
-    DEBUG_ASSERT_MSG(playback_speed > 0, "playback speed must be > 0.");
-    player->playback_rate_forward = playback_speed;
-    return apply_playback_state(player);
-}
+/* int camerapi_set_playback_speed(struct camerapi *player, double playback_speed) */
+/* { */
+/*     LOG_DEBUG("camerapi_set_playback_speed(%f)\n", playback_speed); */
+/*     DEBUG_ASSERT_MSG(playback_speed > 0, "playback speed must be > 0."); */
+/*     player->playback_rate_forward = playback_speed; */
+/*     return apply_playback_state(player); */
+/* } */
 
 int camerapi_step_forward(struct camerapi *player)
 {
