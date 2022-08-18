@@ -19,28 +19,12 @@
 
 FILE_DESCR("camerapi plugin")
 
-enum data_source_type
-{
-    kDataSourceTypeAsset,
-    kDataSourceTypeNetwork,
-    kDataSourceTypeFile,
-    kDataSourceTypeContentUri
-};
-
 struct camerapi_meta
 {
     char *event_channel_name;
 
     // We have a listener to the video player event channel.
     bool has_listener;
-
-    /*
-    sd_event_source *probe_video_info_source;
-    bool has_video_info;
-    bool is_stream;
-    int64_t duration_ms;
-    int32_t width, height;
-    */
 
     atomic_bool is_buffering;
 
@@ -420,63 +404,6 @@ static int on_initialize(char *channel, struct platch_obj *object, FlutterPlatfo
     return platch_respond_success_pigeon(responsehandle, NULL);
 }
 
-static int check_headers(const struct std_value *headers, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    const struct std_value *key, *value;
-
-    if (headers == NULL || STDVALUE_IS_NULL(*headers)) {
-        return 0;
-    } else if (headers->type != kStdMap) {
-        platch_respond_illegal_arg_pigeon(responsehandle, "Expected `arg['httpHeaders']` to be a map of strings or null.");
-        return EINVAL;
-    }
-
-    for (int i = 0; i < headers->size; i++) {
-        key = headers->keys + i;
-        value = headers->values + i;
-
-        if (STDVALUE_IS_NULL(*key) || STDVALUE_IS_NULL(*value)) {
-            // ignore this value
-            continue;
-        } else if (STDVALUE_IS_STRING(*key) && STDVALUE_IS_STRING(*value)) {
-            // valid too
-            continue;
-        } else {
-            platch_respond_illegal_arg_pigeon(responsehandle, "Expected `arg['httpHeaders']` to be a map of strings or null.");
-            return EINVAL;
-        }
-    }
-
-    return 0;
-}
-
-static int add_headers_to_player(const struct std_value *headers, struct camerapi *player)
-{
-    const struct std_value *key, *value;
-
-    if (headers == NULL || STDVALUE_IS_NULL(*headers)) {
-        return 0;
-    } else if (headers->type != kStdMap) {
-        DEBUG_ASSERT(false);
-    }
-
-    for (int i = 0; i < headers->size; i++) {
-        key = headers->keys + i;
-        value = headers->values + i;
-
-        if (STDVALUE_IS_NULL(*key) || STDVALUE_IS_NULL(*value)) {
-            // ignore this value
-            continue;
-        } else if (STDVALUE_IS_STRING(*key) && STDVALUE_IS_STRING(*value)) {
-            camerapi_put_http_header(player, STDVALUE_AS_STRING(*key), STDVALUE_AS_STRING(*value));
-        } else {
-            DEBUG_ASSERT(false);
-        }
-    }
-
-    return 0;
-}
-
 /// Allocates and initializes a camerapi_meta struct, which we
 /// use to store additional information in a camerapi instance.
 /// (The event channel name for that player)
@@ -515,8 +442,6 @@ static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMe
 {
     struct camerapi_meta *meta;
     struct camerapi *player;
-    struct std_value *temp;
-    enum format_hint format_hint;
     int ok;
 
     (void)channel;
@@ -543,9 +468,6 @@ static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMe
     }
 
     camerapi_set_userdata_locked(player, meta);
-
-    // Add all our HTTP headers to camerapi using camerapi_put_http_header
-    add_headers_to_player(temp, player);
 
     // add it to our player collection
     ok = add_player(player);
@@ -657,21 +579,6 @@ static int on_pause(char *channel, struct platch_obj *object, FlutterPlatformMes
     return platch_respond_success_pigeon(responsehandle, NULL);
 }
 
-static int on_set_mix_with_others(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct std_value *arg;
-
-    (void)channel;
-
-    arg = &object->std_value;
-
-    (void)arg;
-
-    /// TODO: Should we do anything other here than just returning?
-    LOG_DEBUG("on_set_mix_with_others\n");
-    return platch_respond_success_std(responsehandle, &STDNULL);
-}
-
 enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void **userdata_out)
 {
     int ok;
@@ -711,12 +618,6 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
         goto fail_remove_play_receiver;
     }
 
-    ok = plugin_registry_set_receiver(
-      "dev.flutter.pigeon.CameraPiApi.setMixWithOthers", kStandardMessageCodec, on_set_mix_with_others);
-    if (ok != 0) {
-        goto fail_remove_pause_receiver;
-    }
-
     return kInitialized_PluginInitResult;
 
 fail_remove_pause_receiver:
@@ -744,7 +645,6 @@ void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
     (void)flutterpi;
     (void)userdata;
 
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.setMixWithOthers");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");

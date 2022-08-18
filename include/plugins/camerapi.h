@@ -49,11 +49,6 @@ int64_t camerapi_get_texture_id(struct camerapi *player);
 
 // void camerapi_set_buffering_callback(struct camerapi *player, camerapi_buffering_callback_t callback, void *userdata);
 
-/// Add a http header (consisting of a string key and value) to the list of http headers that
-/// gstreamer will use when playing back from a HTTP/S URI.
-/// This has no effect after @ref camerapi_initialize was called.
-void camerapi_put_http_header(struct camerapi *player, const char *key, const char *value);
-
 /// Initializes the video playback, i.e. boots up the gstreamer pipeline, starts
 /// buffering the video.
 ///     @returns 0 if initialization was successfull, errno-style error code if an error ocurred.
