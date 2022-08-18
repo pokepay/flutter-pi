@@ -497,7 +497,7 @@ static struct camerapi_meta *create_meta(int64_t texture_id)
         return NULL;
     }
 
-    asprintf(&event_channel_name, "flutter.io/videoPlayer/videoEvents%" PRId64, texture_id);
+    asprintf(&event_channel_name, "flutter.io/camerapi/videoEvents%" PRId64, texture_id);
 
     if (event_channel_name == NULL) {
         free(meta);
