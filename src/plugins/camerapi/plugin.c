@@ -259,11 +259,6 @@ static int send_initialized_event(struct camerapi_meta *meta, bool is_stream, in
         STDINT32(height)));
 }
 
-static int send_completed_event(struct camerapi_meta *meta)
-{
-    return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("completed")));
-}
-
 static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const struct buffering_range *ranges)
 {
     struct std_value values;
