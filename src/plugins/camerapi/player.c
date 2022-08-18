@@ -270,7 +270,7 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
     GError *error;
     gchar *debug_info;
 
-    LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
+    printf("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
     DEBUG_TRACE_BEGIN(player, "on_bus_message");
     if (gst_message_has_name(msg, "barcode")) {
         LOG_DEBUG("barcode detected\n");
