@@ -1275,55 +1275,6 @@ int64_t camerapi_get_position(struct camerapi *player)
     return GST_TIME_AS_MSECONDS(position);
 }
 
-int camerapi_step_forward(struct camerapi *player)
-{
-    gboolean gst_ok;
-    int ok;
-
-    DEBUG_ASSERT_NOT_NULL(player);
-
-    player->playpause_state = kStepping;
-    player->direction = kForward;
-    ok = apply_playback_state(player);
-    if (ok != 0) {
-        return ok;
-    }
-
-    if (player->is_currently_falling_back_to_sw_decoding == false) {
-        gst_ok = gst_element_send_event(player->pipeline, gst_event_new_step(GST_FORMAT_BUFFERS, 1, 1, TRUE, FALSE));
-        if (gst_ok == FALSE) {
-            LOG_ERROR("Could not send frame-step event to pipeline. (gst_element_send_event)\n");
-            return EIO;
-        }
-    }
-    return 0;
-}
-
-int camerapi_step_backward(struct camerapi *player)
-{
-    gboolean gst_ok;
-    int ok;
-
-    DEBUG_ASSERT_NOT_NULL(player);
-
-    player->playpause_state = kStepping;
-    player->direction = kBackward;
-    ok = apply_playback_state(player);
-    if (ok != 0) {
-        return ok;
-    }
-
-    if (player->is_currently_falling_back_to_sw_decoding == false) {
-        gst_ok = gst_element_send_event(player->pipeline, gst_event_new_step(GST_FORMAT_BUFFERS, 1, 1, TRUE, FALSE));
-        if (gst_ok == FALSE) {
-            LOG_ERROR("Could not send frame-step event to pipeline. (gst_element_send_event)\n");
-            return EIO;
-        }
-    }
-
-    return 0;
-}
-
 struct notifier *camerapi_get_video_info_notifier(struct camerapi *player)
 {
     return &player->video_info_notifier;

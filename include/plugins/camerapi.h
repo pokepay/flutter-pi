@@ -87,30 +87,6 @@ int camerapi_pause(struct camerapi *player);
 ///     @returns Current playback position, in milliseconds from the beginning of the video.
 int64_t camerapi_get_position(struct camerapi *player);
 
-/// Set whether the video should loop.
-///     @arg looping    Whether the video should start playing from the beginning when the
-///                     end is reached.
-int camerapi_set_looping(struct camerapi *player, bool looping);
-
-/// Set the playback volume.
-///     @arg volume     Desired volume as a value between 0 and 1.
-int camerapi_set_volume(struct camerapi *player, double volume);
-
-/// Seek to a specific position in the video.
-///     @arg position            Position to seek to in milliseconds from the beginning of the video.
-///     @arg nearest_keyframe    If true, seek to the nearest keyframe instead. Might be faster but less accurate.
-int camerapi_seek_to(struct camerapi *player, int64_t position, bool nearest_keyframe);
-
-/// Set the playback speed of the player.
-///   1.0: normal playback speed
-///   0.5: half playback speed
-///   2.0: double playback speed
-int camerapi_set_playback_speed(struct camerapi *player, double playback_speed);
-
-int camerapi_step_forward(struct camerapi *player);
-
-int camerapi_step_backward(struct camerapi *player);
-
 /// @brief Get the value notifier for the video info.
 ///
 /// Gets notified with a value of type `struct video_info*` when the video info changes.

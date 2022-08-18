@@ -772,89 +772,6 @@ static int on_set_mix_with_others(char *channel, struct platch_obj *object, Flut
     return platch_respond_success_std(responsehandle, &STDNULL);
 }
 
-static int on_step_forward(struct std_value *arg, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    int ok;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0) {
-        return 0;
-    }
-
-    ok = camerapi_step_forward(player);
-    if (ok != 0) {
-        return platch_respond_native_error_std(responsehandle, ok);
-    }
-
-    return platch_respond_success_std(responsehandle, NULL);
-}
-
-static int on_step_backward(struct std_value *arg, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    int ok;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0) {
-        return 0;
-    }
-
-    ok = camerapi_step_backward(player);
-    if (ok != 0) {
-        return platch_respond_native_error_std(responsehandle, ok);
-    }
-
-    return platch_respond_success_std(responsehandle, NULL);
-}
-
-static int on_fast_seek(struct std_value *arg, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    struct camerapi *player;
-    struct std_value *temp;
-    int64_t position;
-    int ok;
-
-    ok = get_player_from_map_arg(arg, &player, responsehandle);
-    if (ok != 0) {
-        return 0;
-    }
-
-    temp = stdmap_get_str(arg, "position");
-    if (STDVALUE_IS_INT(*temp)) {
-        position = STDVALUE_AS_INT(*temp);
-    } else {
-        return platch_respond_illegal_arg_pigeon(responsehandle, "Expected `arg['position']` to be an integer.");
-    }
-
-    ok = camerapi_seek_to(player, position, true);
-    if (ok != 0) {
-        return platch_respond_native_error_std(responsehandle, ok);
-    }
-
-    return platch_respond_success_std(responsehandle, NULL);
-}
-
-static int
-on_receive_method_channel(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
-    const char *method;
-
-    (void)channel;
-
-    method = object->method;
-
-    if STREQ ("stepForward", method) {
-        return on_step_forward(&object->std_arg, responsehandle);
-    } else if STREQ ("stepBackward", method) {
-        return on_step_backward(&object->std_arg, responsehandle);
-    } else if STREQ ("fastSeek", method) {
-        return on_fast_seek(&object->std_arg, responsehandle);
-    } else {
-        return platch_respond_not_implemented(responsehandle);
-    }
-}
-
 enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void **userdata_out)
 {
     int ok;
@@ -886,7 +803,7 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
 
     ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.play", kStandardMessageCodec, on_play);
     if (ok != 0) {
-        goto fail_remove_setPlaybackSpeed_receiver;
+        goto fail_remove_dispose_receiver;
     }
 
     ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.position", kStandardMessageCodec, on_get_position);
@@ -896,7 +813,7 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
 
     ok = plugin_registry_set_receiver("dev.flutter.pigeon.CameraPiApi.pause", kStandardMessageCodec, on_pause);
     if (ok != 0) {
-        goto fail_remove_seekTo_receiver;
+        goto fail_remove_position_receiver;
     }
 
     ok = plugin_registry_set_receiver(
@@ -905,33 +822,17 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
         goto fail_remove_pause_receiver;
     }
 
-    ok = plugin_registry_set_receiver(
-      "flutter.io/videoPlayer/gstreamerVideoPlayer/advancedControls", kStandardMethodCall, on_receive_method_channel);
-    if (ok != 0) {
-        goto fail_remove_setMixWithOthers_receiver;
-    }
-
     return kInitialized_PluginInitResult;
-
-fail_remove_setMixWithOthers_receiver:
-    plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.setMixWithOthers");
 
 fail_remove_pause_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
 
-fail_remove_seekTo_receiver:
-
 fail_remove_position_receiver:
+
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.position");
 
 fail_remove_play_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.play");
-
-fail_remove_setPlaybackSpeed_receiver:
-
-fail_remove_setVolume_receiver:
-
-fail_remove_setLooping_receiver:
 
 fail_remove_dispose_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
@@ -952,7 +853,6 @@ void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
     (void)flutterpi;
     (void)userdata;
 
-    plugin_registry_remove_receiver("flutter.io/videoPlayer/gstreamerVideoPlayer/advancedControls");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.setMixWithOthers");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.pause");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.position");
