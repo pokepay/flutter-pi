@@ -403,7 +403,9 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             break;
 
         default:
-            LOG_DEBUG("gstreamer message: %s, src: %s\n", GST_MESSAGE_TYPE_NAME(msg), GST_MESSAGE_SRC_NAME(msg));
+            if (strcmp(GST_MESSAGE_TYPE_NAME(msg), "qos") || strcmp(GST_MESSAGE_SRC_NAME(msg), "videoconvert0")) {
+                LOG_DEBUG("gstreamer message: %s, src: %s\n", GST_MESSAGE_TYPE_NAME(msg), GST_MESSAGE_SRC_NAME(msg));
+            }
             break;
     }
     DEBUG_TRACE_END(player, "on_bus_message");
