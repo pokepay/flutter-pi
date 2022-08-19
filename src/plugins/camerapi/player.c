@@ -952,3 +952,7 @@ struct notifier *camerapi_get_error_notifier(struct camerapi *player)
 {
     return &player->error_notifier;
 }
+struct notifier *camerapi_barcode_notifier(struct camerapi *player)
+{
+    return &player->barcode_notifier;
+}
