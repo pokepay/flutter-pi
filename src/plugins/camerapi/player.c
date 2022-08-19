@@ -803,8 +803,10 @@ BarcodeInfo *BarcodeInfo_new(const char *barcode, const char *barcode_type, int 
 
 void BarcodeInfo_destroy(BarcodeInfo *barcode_info)
 {
-    free(barcode_info->barcode);
-    free(barcode_info->barcode_type);
+    if (barcode_info != NULL) {
+        free(barcode_info->barcode);
+        free(barcode_info->barcode_type);
+    }
     free(barcode_info);
 }
 
