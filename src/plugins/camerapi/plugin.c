@@ -287,12 +287,7 @@ static enum listener_return on_video_info_notify(void *arg, void *userdata)
         return kNoAction;
     }
 
-    LOG_DEBUG(
-      "Got video info: stream? %s, w x h: % 4d x % 4d, duration: %" GST_TIME_FORMAT "\n",
-      !info->can_seek ? "yes" : "no",
-      info->width,
-      info->height,
-      GST_TIME_ARGS(info->duration_ms * GST_MSECOND));
+    LOG_DEBUG("Got video info: w x h: % 4d x % 4d\n", info->width, info->height);
 
     /// on_video_info_notify is called on an internal thread,
     /// but send_initialized_event is (should be) mt-safe
