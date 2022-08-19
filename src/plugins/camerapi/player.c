@@ -673,7 +673,8 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
 
     static const char *pipeline_descr =
       "libcamerasrc ! queue ! video/x-raw,width=640,height=480,framerate=0/1 ! queue ! zbar name=zbar ! videoconvert ! "
-      "video/x-raw,format=I420 ! videoflip method=horizontal-flip ! appsink sync=true name=\"camerasink\"";
+      "video/x-raw,format=I420 ! videoflip method=horizontal-flip ! videoflip method=counterclockwise ! appsink sync=true "
+      "name=\"camerasink\"";
 
     pipeline = gst_parse_launch(pipeline_descr, &error);
     if (pipeline == NULL) {
