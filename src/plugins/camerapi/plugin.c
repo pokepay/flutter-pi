@@ -329,7 +329,7 @@ static enum listener_return on_barcode_value_notify(void *arg, void *userdata)
 
     send_barcode_info(type, data, info->quality);
 
-    return kUnlisten;
+    return kNoAction;
 }
 
 static enum listener_return on_buffering_state_notify(void *arg, void *userdata)
