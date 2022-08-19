@@ -267,10 +267,9 @@ static int send_barcode_info(char *barcode_type, char *barcode_content, int qual
 {
     // clang-format off
     return platch_send_success_event_std(BARCODE_EVENT_CHANNEL,
-                                         &STDMAP4(STDSTRING("event"),   STDSTRING("barcode"),
-                                                  STDSTRING("type"),    STDSTRING(barcode_type),
-                                                  STDSTRING("value"),   STDSTRING(barcode_content),
-                                                  STDSTRING("quality"), STDINT64(quality)));
+                                         &STDMAP3(STDSTRING("barcode_type"), STDSTRING(barcode_type),
+                                                  STDSTRING("barcode"),      STDSTRING(barcode_content),
+                                                  STDSTRING("quality"),      STDINT64(quality)));
     // clang-format on
 }
 
