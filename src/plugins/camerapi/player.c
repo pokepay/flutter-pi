@@ -271,14 +271,13 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
     GError *error;
     gchar *debug_info;
 
-    LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
     DEBUG_TRACE_BEGIN(player, "on_bus_message");
     if (gst_message_has_name(msg, "barcode")) {
         const GstStructure *s = gst_message_get_structure(msg);
         if (s != NULL) {
             const gchar *symbol = gst_structure_get_string(s, "symbol");
             const gchar *type = gst_structure_get_string(s, "type");
-            printf("barcode detected: type: %s,  symbol: %s\n", type, symbol);
+            LOG_DEBUG("barcode detected: type: %s,  symbol: %s\n", type, symbol);
         }
     }
     switch (GST_MESSAGE_TYPE(msg)) {
