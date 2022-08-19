@@ -1,5 +1,6 @@
 #include "gst/gstelement.h"
 #include "gst/gstmessage.h"
+#include "gst/gststructure.h"
 #define _GNU_SOURCE
 
 #include <inttypes.h>
@@ -273,7 +274,10 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
     LOG_DEBUG("on_bus_message %s\n", GST_MESSAGE_TYPE_NAME(msg));
     DEBUG_TRACE_BEGIN(player, "on_bus_message");
     if (gst_message_has_name(msg, "barcode")) {
-        printf("barcode detected\n");
+        const GstStructure *s = gst_message_get_structure(msg);
+        const gchar *symbol = gst_structure_get_string(s, "symbol");
+        const gchar *type = gst_structure_get_string(s, "type");
+        printf("barcode detected: type: %s,  symbol: %s\n", type, symbol);
     }
     switch (GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_ERROR:
