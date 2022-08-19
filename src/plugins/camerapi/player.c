@@ -53,15 +53,13 @@ FILE_DESCR("gstreamer video_player")
       "last gstreamer state change failed. gst_element_get_state(element name: %s): GST_STATE_CHANGE_FAILURE\n", \
       GST_ELEMENT_NAME(_element))
 
-struct incomplete_video_info
-{
+struct incomplete_video_info {
     bool has_resolution;
     bool has_fps;
     struct camera_video_info info;
 };
 
-struct camerapi
-{
+struct camerapi {
     pthread_mutex_t lock;
 
     struct flutterpi *flutterpi;
@@ -70,7 +68,7 @@ struct camerapi
     bool is_forcing_sw_decoding;
     bool is_currently_falling_back_to_sw_decoding;
 
-    struct notifier video_info_notifier, buffering_state_notifier, error_notifier;
+    struct notifier video_info_notifier, buffering_state_notifier, error_notifier, barcode_notifier;
 
     bool has_sent_info;
     struct incomplete_video_info info;
@@ -277,6 +275,13 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
         if (s != NULL) {
             const gchar *symbol = gst_structure_get_string(s, "symbol");
             const gchar *type = gst_structure_get_string(s, "type");
+            gint quality = -1;
+            bool res = gst_structure_get_int(s, "quality", &quality);
+            if (!res) {
+                LOG_ERROR("The barcode message did not contain a proper 'quality' field\n");
+            }
+            BarcodeInfo *barcode = BarcodeInfo_new(symbol, type, quality);
+            notifier_notify(camerapi_barcode_notifier(player), barcode);
             LOG_DEBUG("barcode detected: type: %s,  symbol: %s\n", type, symbol);
         }
     }
@@ -740,8 +745,7 @@ fail_unref_pipeline:
 
 static void maybe_deinit(struct camerapi *player)
 {
-    struct my_gst_object
-    {
+    struct my_gst_object {
         GInitiallyUnowned object;
 
         /*< public >*/     /* with LOCK */
@@ -780,6 +784,34 @@ static void maybe_deinit(struct camerapi *player)
         gst_object_unref(GST_OBJECT(player->pipeline));
         player->pipeline = NULL;
     }
+}
+
+BarcodeInfo *BarcodeInfo_new(const char *barcode, const char *barcode_type, int quality)
+{
+    BarcodeInfo *info = (BarcodeInfo *)malloc(sizeof(BarcodeInfo));
+
+    info->barcode = malloc(strlen(barcode) + 1);
+    strcpy(info->barcode, barcode);
+
+    info->barcode_type = malloc(strlen(barcode_type) + 1);
+    strcpy(info->barcode_type, barcode_type);
+
+    info->quality = quality;
+
+    return info;
+}
+
+void BarcodeInfo_destroy(BarcodeInfo *barcode_info)
+{
+    free(barcode_info->barcode);
+    free(barcode_info->barcode_type);
+    free(barcode_info);
+}
+
+void barcode_info_notifier_destructor(void *barcode_info)
+{
+    BarcodeInfo *info = (BarcodeInfo *)barcode_info;
+    BarcodeInfo_destroy(info);
 }
 
 DEFINE_LOCK_OPS(camerapi, lock)
@@ -822,6 +854,10 @@ struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata)
     if (ok != 0)
         goto fail_deinit_buffering_state_notifier;
 
+    ok = value_notifier_init(&player->barcode_notifier, NULL, barcode_info_notifier_destructor);
+    if (ok != 0)
+        goto fail_deinit_error_notifier;
+
     player->flutterpi = flutterpi;
     player->userdata = userdata;
     player->is_forcing_sw_decoding = false;
@@ -841,8 +877,8 @@ struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata)
     player->drm_format = 0;
     return player;
 
-    // fail_deinit_error_notifier:
-    // notifier_deinit(&player->error_notifier);
+fail_deinit_error_notifier:
+    notifier_deinit(&player->error_notifier);
 
 fail_deinit_buffering_state_notifier:
     notifier_deinit(&player->buffering_state_notifier);

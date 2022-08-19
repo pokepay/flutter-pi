@@ -19,8 +19,9 @@
 
 FILE_DESCR("camerapi plugin")
 
-struct camerapi_meta
-{
+#define BARCODE_EVENT_CHANNEL "flutter.io/camerapi/barcodeEvents"
+
+struct camerapi_meta {
     char *event_channel_name;
 
     // We have a listener to the video player event channel.
@@ -30,10 +31,10 @@ struct camerapi_meta
 
     struct listener *video_info_listener;
     struct listener *buffering_state_listener;
+    struct listener *barcode_listener;
 };
 
-static struct plugin
-{
+static struct plugin {
     struct flutterpi *flutterpi;
     bool initialized;
     struct concurrent_pointer_set players;
@@ -262,6 +263,17 @@ static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const
       meta->event_channel_name, &STDMAP2(STDSTRING("event"), STDSTRING("bufferingUpdate"), STDSTRING("values"), values));
 }
 
+static int send_barcode_info(char *barcode_type, char *barcode_content, int quality)
+{
+    // clang-format off
+    return platch_send_success_event_std(BARCODE_EVENT_CHANNEL,
+                                         &STDMAP4(STDSTRING("event"),   STDSTRING("barcode"),
+                                                  STDSTRING("type"),    STDSTRING(barcode_type),
+                                                  STDSTRING("value"),   STDSTRING(barcode_content),
+                                                  STDSTRING("quality"), STDINT64(quality)));
+    // clang-format on
+}
+
 static int send_buffering_start(struct camerapi_meta *meta)
 {
     return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("bufferingStart")));
@@ -295,6 +307,29 @@ static enum listener_return on_video_info_notify(void *arg, void *userdata)
 
     /// TODO: We should only send the initialized event once,
     /// but maybe it's also okay if we send it multiple times?
+    return kUnlisten;
+}
+
+static enum listener_return on_barcode_value_notify(void *arg, void *userdata)
+{
+    struct BarcodeInfo *info;
+    char *data;
+    char *type;
+    (void)userdata;
+    info = arg;
+
+    if (arg == NULL) {
+        return kNoAction;
+    }
+
+    data = malloc(strlen(info->barcode) + 1);
+    strcpy(data, info->barcode);
+
+    type = malloc(strlen(info->barcode_type) + 1);
+    strcpy(type, info->barcode_type);
+
+    send_barcode_info(type, data, info->quality);
+
     return kUnlisten;
 }
 
@@ -358,8 +393,14 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
 
         meta->buffering_state_listener =
           notifier_listen(camerapi_get_buffering_state_notifier(player), on_buffering_state_notify, NULL, meta);
+
         if (meta->buffering_state_listener == NULL) {
             LOG_ERROR("Couldn't listen for buffering events in camerapi.\n");
+        }
+
+        meta->barcode_listener = notifier_listen(camerapi_barcode_notifier(player), on_barcode_value_notify, NULL, meta);
+        if (meta->barcode_listener == NULL) {
+            LOG_ERROR("Couldn't listen for barcode events in camerapi.\n");
         }
     } else if STREQ ("cancel", method) {
         platch_respond_success_std(responsehandle, NULL);
@@ -372,6 +413,10 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
         if (meta->buffering_state_listener != NULL) {
             notifier_unlisten(camerapi_get_buffering_state_notifier(player), meta->buffering_state_listener);
             meta->buffering_state_listener = NULL;
+        }
+        if (meta->barcode_listener != NULL) {
+            notifier_unlisten(camerapi_barcode_notifier(player), meta->barcode_listener);
+            meta->barcode_listener = NULL;
         }
     } else {
         return platch_respond_not_implemented(responsehandle);
@@ -566,7 +611,15 @@ enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void *
         goto fail_remove_create_receiver;
     }
 
+    /* ok = plugin_registry_set_receiver(BARCODE_EVENT_CHANNEL, kStandardMessageCodec, on_barcode_event); */
+    /* if (ok != 0) { */
+    /*     goto fail_remove_dispose_receiver; */
+    /* } */
+
     return kInitialized_PluginInitResult;
+
+    /* fail_remove_dispose_receiver: */
+    /*     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose"); */
 
 fail_remove_create_receiver:
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
@@ -587,6 +640,7 @@ void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.initialize");
+    /* plugin_registry_remove_receiver(BARCODE_EVENT_CHANNEL); */
     cpset_deinit(&plugin.players);
 }
 
