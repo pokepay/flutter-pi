@@ -1,5 +1,6 @@
 #define  _GNU_SOURCE
 
+#include <execinfo.h>
 #include <ctype.h>
 #include <features.h>
 #include <dlfcn.h>
@@ -1357,6 +1358,19 @@ static int load_egl_gl_procs(void) {
 	return 0;
 }
 
+void sigsegv_handler(int sig) {
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  exit(1);
+}
+
 static int init_display(void) {
     /**********************
      * DRM INITIALIZATION *
@@ -2532,6 +2546,7 @@ void deinit() {
 
 int main(int argc, char **argv) {
     int ok;
+    signal(SIGSEGV, sigsegv_handler);
 
 #ifdef ENABLE_MTRACE
     mtrace();
