@@ -115,9 +115,9 @@ static int mobile_scanner_on_method_call(char *channel, struct platch_obj *objec
 
     method = object->method;
     if (!strcmp(method, "state")) {
-        platch_respond_success_std(responsehandle, &STDINT64(1));
+        return platch_respond_success_std(responsehandle, &STDINT64(1));
     } else if (!strcmp(method, "request")) {
-        platch_respond_success_std(responsehandle, &STDBOOL(true));
+        return platch_respond_success_std(responsehandle, &STDBOOL(true));
     } else if (!strcmp(method, "start")) {
         if (plugin.camerapi != NULL) {
             LOG_ERROR("Camera already opened");
@@ -128,16 +128,14 @@ static int mobile_scanner_on_method_call(char *channel, struct platch_obj *objec
             notifier_listen(camerapi_get_video_info_notifier(plugin.camerapi), mobile_scanner_on_video_info_notify, NULL, responsehandle);
         plugin.barcode_listener =
             notifier_listen(camerapi_barcode_notifier(plugin.camerapi), mobile_scanner_on_barcode_notify, NULL, responsehandle);
-
-        // clang-format off
-        // clang-format on
+        return 0;
     } else if (!strcmp(method, "stop")) {
         notifier_unlisten(camerapi_get_video_info_notifier(plugin.camerapi), plugin.video_info_listener);
         // NOTE should we somehow destroy the listener?
         plugin.video_info_listener = NULL;
         camerapi_destroy(plugin.camerapi);
         plugin.camerapi = NULL;
-        return 0;
+        return platch_respond_success_std(responsehandle, NULL);
     } else if (!strcmp(method, "torch")) {
         return platch_respond_error_std(responsehandle, "MobileScanner", "Torch not supported", NULL);
     } else if (!strcmp(method, "analyzeImage")) {
