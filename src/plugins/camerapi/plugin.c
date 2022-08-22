@@ -28,10 +28,7 @@ struct camerapi_meta {
     // We have a listener to the video player event channel.
     bool has_listener;
 
-    atomic_bool is_buffering;
-
     struct listener *video_info_listener;
-    struct listener *buffering_state_listener;
     struct listener *barcode_listener;
 };
 
@@ -228,28 +225,6 @@ static int send_initialized_event(struct camerapi_meta *meta, int width, int hei
     );
 }
 
-static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const struct buffering_range *ranges) {
-    struct std_value values;
-
-    values.type = kStdList;
-    values.size = n_ranges;
-    values.list = alloca(sizeof(struct std_value) * n_ranges);
-
-    for (size_t i = 0; i < n_ranges; i++) {
-        values.list[i].type = kStdList;
-        values.list[i].size = 2;
-        values.list[i].list = alloca(sizeof(struct std_value) * 2);
-
-        values.list[i].list[0] = STDINT32(ranges[i].start_ms);
-        values.list[i].list[1] = STDINT32(ranges[i].stop_ms);
-    }
-
-    return platch_send_success_event_std(
-        meta->event_channel_name,
-        &STDMAP2(STDSTRING("event"), STDSTRING("bufferingUpdate"), STDSTRING("values"), values)
-    );
-}
-
 static int send_barcode_info(char *barcode_type, char *barcode_content, int quality) {
     // clang-format off
     return platch_send_success_event_std(BARCODE_EVENT_CHANNEL,
@@ -257,14 +232,6 @@ static int send_barcode_info(char *barcode_type, char *barcode_content, int qual
                                                   STDSTRING("barcode"),      STDSTRING(barcode_content),
                                                   STDSTRING("quality"),      STDINT64(quality)));
     // clang-format on
-}
-
-static int send_buffering_start(struct camerapi_meta *meta) {
-    return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("bufferingStart")));
-}
-
-static int send_buffering_end(struct camerapi_meta *meta) {
-    return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("bufferingEnd")));
 }
 
 static enum listener_return on_video_info_notify(void *arg, void *userdata) {
@@ -314,33 +281,6 @@ static enum listener_return on_barcode_value_notify(void *arg, void *userdata) {
     return kNoAction;
 }
 
-static enum listener_return on_buffering_state_notify(void *arg, void *userdata) {
-    struct buffering_state *state;
-    struct camerapi_meta *meta;
-    bool new_is_buffering;
-
-    DEBUG_ASSERT_NOT_NULL(userdata);
-    meta = userdata;
-    state = arg;
-
-    if (arg == NULL) {
-        return kNoAction;
-    }
-
-    new_is_buffering = state->percent != 100;
-
-    if (meta->is_buffering && !new_is_buffering) {
-        send_buffering_end(meta);
-        meta->is_buffering = false;
-    } else if (!meta->is_buffering && new_is_buffering) {
-        send_buffering_start(meta);
-        meta->is_buffering = true;
-    }
-
-    send_buffering_update(meta, state->n_ranges, state->ranges);
-    return kNoAction;
-}
-
 /*******************************************************
  * CHANNEL HANDLERS                                    *
  * handle method calls on the method and event channel *
@@ -370,13 +310,6 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
             LOG_ERROR("Couldn't listen for video info events in camerapi.\n");
         }
 
-        /* meta->buffering_state_listener = */
-        /*     notifier_listen(camerapi_get_buffering_state_notifier(player), on_buffering_state_notify, NULL, meta); */
-
-        /* if (meta->buffering_state_listener == NULL) { */
-        /*     LOG_ERROR("Couldn't listen for buffering events in camerapi.\n"); */
-        /* } */
-
         meta->barcode_listener = notifier_listen(camerapi_barcode_notifier(player), on_barcode_value_notify, NULL, meta);
         if (meta->barcode_listener == NULL) {
             LOG_ERROR("Couldn't listen for barcode events in camerapi.\n");
@@ -388,10 +321,6 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
         if (meta->video_info_listener != NULL) {
             notifier_unlisten(camerapi_get_video_info_notifier(player), meta->video_info_listener);
             meta->video_info_listener = NULL;
-        }
-        if (meta->buffering_state_listener != NULL) {
-            notifier_unlisten(camerapi_get_buffering_state_notifier(player), meta->buffering_state_listener);
-            meta->buffering_state_listener = NULL;
         }
         if (meta->barcode_listener != NULL) {
             notifier_unlisten(camerapi_barcode_notifier(player), meta->barcode_listener);
@@ -443,7 +372,6 @@ static struct camerapi_meta *create_meta(int64_t texture_id) {
 
     meta->event_channel_name = event_channel_name;
     meta->has_listener = false;
-    meta->is_buffering = false;
     return meta;
 }
 
@@ -545,10 +473,6 @@ static int on_dispose(char *channel, struct platch_obj *object, FlutterPlatformM
     if (meta->video_info_listener != NULL) {
         notifier_unlisten(camerapi_get_video_info_notifier(player), meta->video_info_listener);
         meta->video_info_listener = NULL;
-    }
-    if (meta->buffering_state_listener != NULL) {
-        notifier_unlisten(camerapi_get_buffering_state_notifier(player), meta->buffering_state_listener);
-        meta->buffering_state_listener = NULL;
     }
     destroy_meta(meta);
     camerapi_destroy(player);
