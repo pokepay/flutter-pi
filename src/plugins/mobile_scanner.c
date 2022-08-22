@@ -137,10 +137,11 @@ static int mobile_scanner_on_method_call(char *channel, struct platch_obj *objec
         plugin.video_info_listener = NULL;
         camerapi_destroy(plugin.camerapi);
         plugin.camerapi = NULL;
+        return 0;
     } else if (!strcmp(method, "torch")) {
-        platch_respond_error_std(responsehandle, "MobileScanner", "Torch not supported", NULL);
+        return platch_respond_error_std(responsehandle, "MobileScanner", "Torch not supported", NULL);
     } else if (!strcmp(method, "analyzeImage")) {
-        platch_respond_not_implemented(responsehandle);
+        return platch_respond_not_implemented(responsehandle);
     }
     return platch_respond_not_implemented(responsehandle);
 }
