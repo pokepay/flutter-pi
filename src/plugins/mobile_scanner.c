@@ -31,6 +31,10 @@ enum plugin_init_result mobile_scanner_plugin_init(struct flutterpi *flutterpi, 
     if (ok != 0) {
         return kError_PluginInitResult;
     }
+    ok = plugin_registry_set_receiver(MOBILE_SCANNER_EVENT_CHANNEL, kStandardMethodCall, NULL);
+    if (ok != 0) {
+        return kError_PluginInitResult;
+    }
 
     // XXX What to do with this event channel?
     /* "dev.steenbakker.mobile_scanner/scanner/event" */
