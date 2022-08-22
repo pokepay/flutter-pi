@@ -24,6 +24,7 @@ static int mobile_scanner_on_method_call(char *channel, struct platch_obj *objec
 static int mobile_scanner_on_event(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
     (void) channel;
     (void) object;
+    (void) responsehandle;
     LOG_DEBUG("on event called");
     return 0;
 }
