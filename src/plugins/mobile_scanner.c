@@ -21,6 +21,13 @@ static struct plugin {
 
 static int mobile_scanner_on_method_call(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle);
 
+static int mobile_scanner_on_event(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
+    (void) channel;
+    (void) object;
+    LOG_DEBUG("on event called");
+    return 0;
+}
+
 enum plugin_init_result mobile_scanner_plugin_init(struct flutterpi *flutterpi, void **userdata_out) {
     (void) userdata_out;
     int ok;
@@ -31,7 +38,7 @@ enum plugin_init_result mobile_scanner_plugin_init(struct flutterpi *flutterpi, 
     if (ok != 0) {
         return kError_PluginInitResult;
     }
-    ok = plugin_registry_set_receiver(MOBILE_SCANNER_EVENT_CHANNEL, kStandardMethodCall, NULL);
+    ok = plugin_registry_set_receiver(MOBILE_SCANNER_EVENT_CHANNEL, kStandardMethodCall, mobile_scanner_on_event);
     if (ok != 0) {
         return kError_PluginInitResult;
     }
