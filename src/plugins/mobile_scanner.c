@@ -112,8 +112,9 @@ static enum listener_return mobile_scanner_on_barcode_notify(void *arg, void *us
     // clang-format off
     platch_send_success_event_std(
         MOBILE_SCANNER_EVENT_CHANNEL,
-        &STDMAP2(STDSTRING("name"), STDSTRING("barcode"),
-                 STDSTRING("data"), STDSTRING(data))
+        &STDMAP2(STDSTRING("name"), STDSTRING("barcodeMac"),
+                 STDSTRING("data"), STDMAP2(STDSTRING("payload"), STDSTRING(data),
+                                            STDSTRING("symbology"): STDSTRING("QR")))
     );
     // clang-format on
 
