@@ -6,6 +6,7 @@
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+
 #include <collection.h>
 
 struct camera_video_info {
@@ -16,15 +17,15 @@ struct camera_video_info {
 struct camerapi;
 struct flutterpi;
 
-typedef struct BarcodeInfo {
+struct barcode_info {
     char *barcode;
     char *barcode_type;
     int quality;
-} BarcodeInfo;
+};
 
-BarcodeInfo *BarcodeInfo_new(const char *barcode, const char *barcode_type, int quality);
+struct barcode_info *barcode_info_new(const char *barcode, const char *barcode_type, int quality);
 
-void BarcodeInfo_destroy(BarcodeInfo *barcode_info);
+void barcode_info_destroy(struct barcode_info *barcode_info);
 
 /// Create a camerapi instance.
 ///     @arg userdata       The userdata associated with this player

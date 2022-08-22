@@ -4,10 +4,12 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <pthread.h>
+
 #include <sys/eventfd.h>
 
 #include <drm_fourcc.h>
@@ -26,32 +28,34 @@
 #include <plugins/camerapi.h>
 #include <texture_registry.h>
 
-FILE_DESCR("gstreamer video_player")
+FILE_DESCR("camerapi")
 
 #ifdef DEBUG
-#define DEBUG_TRACE_BEGIN(player, name) trace_begin(player, name)
-#define DEBUG_TRACE_END(player, name) trace_end(player, name)
-#define DEBUG_TRACE_INSTANT(player, name) trace_instant(player, name)
+    #define DEBUG_TRACE_BEGIN(player, name) trace_begin(player, name)
+    #define DEBUG_TRACE_END(player, name) trace_end(player, name)
+    #define DEBUG_TRACE_INSTANT(player, name) trace_instant(player, name)
 #else
-#define DEBUG_TRACE_BEGIN(player, name) \
-    do {                                \
-    } while (0)
-#define DEBUG_TRACE_END(player, name) \
-    do {                              \
-    } while (0)
-#define DEBUG_TRACE_INSTANT(player, name) \
-    do {                                  \
-    } while (0)
+    #define DEBUG_TRACE_BEGIN(player, name) \
+        do {                                \
+        } while (0)
+    #define DEBUG_TRACE_END(player, name) \
+        do {                              \
+        } while (0)
+    #define DEBUG_TRACE_INSTANT(player, name) \
+        do {                                  \
+        } while (0)
 #endif
 
-#define LOG_GST_SET_STATE_ERROR(_element)                                                                             \
-    LOG_ERROR(                                                                                                        \
-      "setting gstreamer playback state failed. gst_element_set_state(element name: %s): GST_STATE_CHANGE_FAILURE\n", \
-      GST_ELEMENT_NAME(_element))
-#define LOG_GST_GET_STATE_ERROR(_element)                                                                        \
-    LOG_ERROR(                                                                                                   \
-      "last gstreamer state change failed. gst_element_get_state(element name: %s): GST_STATE_CHANGE_FAILURE\n", \
-      GST_ELEMENT_NAME(_element))
+#define LOG_GST_SET_STATE_ERROR(_element)                                                                               \
+    LOG_ERROR(                                                                                                          \
+        "setting gstreamer playback state failed. gst_element_set_state(element name: %s): GST_STATE_CHANGE_FAILURE\n", \
+        GST_ELEMENT_NAME(_element)                                                                                      \
+    )
+#define LOG_GST_GET_STATE_ERROR(_element)                                                                          \
+    LOG_ERROR(                                                                                                     \
+        "last gstreamer state change failed. gst_element_get_state(element name: %s): GST_STATE_CHANGE_FAILURE\n", \
+        GST_ELEMENT_NAME(_element)                                                                                 \
+    )
 
 struct incomplete_video_info {
     bool has_resolution;
@@ -93,33 +97,27 @@ struct camerapi {
 #define MAX_N_PLANES 4
 #define MAX_N_EGL_DMABUF_IMAGE_ATTRIBUTES 6 + 6 * MAX_N_PLANES + 1
 
-static inline void lock(struct camerapi *player)
-{
+static inline void lock(struct camerapi *player) {
     pthread_mutex_lock(&player->lock);
 }
 
-static inline void unlock(struct camerapi *player)
-{
+static inline void unlock(struct camerapi *player) {
     pthread_mutex_unlock(&player->lock);
 }
 
-static inline void trace_instant(struct camerapi *player, const char *name)
-{
+static inline void trace_instant(struct camerapi *player, const char *name) {
     return flutterpi_trace_event_instant(player->flutterpi, name);
 }
 
-static inline void trace_begin(struct camerapi *player, const char *name)
-{
+static inline void trace_begin(struct camerapi *player, const char *name) {
     return flutterpi_trace_event_begin(player->flutterpi, name);
 }
 
-static inline void trace_end(struct camerapi *player, const char *name)
-{
+static inline void trace_end(struct camerapi *player, const char *name) {
     return flutterpi_trace_event_end(player->flutterpi, name);
 }
 
-static int maybe_send_info(struct camerapi *player)
-{
+static int maybe_send_info(struct camerapi *player) {
     struct camera_video_info *duped;
 
     if (player->info.has_resolution && player->info.has_fps) {
@@ -135,8 +133,7 @@ static int maybe_send_info(struct camerapi *player)
     return 0;
 }
 
-static void update_buffering_state(struct camerapi *player)
-{
+static void update_buffering_state(struct camerapi *player) {
     struct buffering_state *state;
     GstBufferingMode mode;
     GstQuery *query;
@@ -154,7 +151,7 @@ static void update_buffering_state(struct camerapi *player)
     gst_query_parse_buffering_percent(query, &busy, &percent);
     gst_query_parse_buffering_stats(query, &mode, &avg_in, &avg_out, &buffering_left);
 
-    n_ranges = (int)gst_query_get_n_buffering_ranges(query);
+    n_ranges = (int) gst_query_get_n_buffering_ranges(query);
 
     state = malloc(sizeof(*state) + n_ranges * sizeof(struct buffering_range));
     if (state == NULL) {
@@ -162,7 +159,7 @@ static void update_buffering_state(struct camerapi *player)
     }
 
     for (int i = 0; i < n_ranges; i++) {
-        ok = gst_query_parse_nth_buffering_range(query, (unsigned int)i, &start, &stop);
+        ok = gst_query_parse_nth_buffering_range(query, (unsigned int) i, &start, &stop);
         if (ok == FALSE) {
             LOG_ERROR("Could not parse %dth buffering range from buffering state. (gst_query_parse_nth_buffering_range)\n", i);
             return;
@@ -176,11 +173,11 @@ static void update_buffering_state(struct camerapi *player)
 
     state->percent = percent;
     state->mode =
-      (mode == GST_BUFFERING_STREAM      ? kStream
-       : mode == GST_BUFFERING_DOWNLOAD  ? kDownload
-       : mode == GST_BUFFERING_TIMESHIFT ? kTimeshift
-       : mode == GST_BUFFERING_LIVE      ? kLive
-                                         : (assert(0), kStream));
+        (mode == GST_BUFFERING_STREAM    ? kStream :
+         mode == GST_BUFFERING_DOWNLOAD  ? kDownload :
+         mode == GST_BUFFERING_TIMESHIFT ? kTimeshift :
+         mode == GST_BUFFERING_LIVE      ? kLive :
+                                           (assert(0), kStream));
     state->avg_in = avg_in;
     state->avg_out = avg_out;
     state->time_left_ms = buffering_left;
@@ -193,15 +190,13 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders);
 
 static void maybe_deinit(struct camerapi *player);
 
-static void fallback_to_sw_decoding(struct camerapi *player)
-{
+static void fallback_to_sw_decoding(struct camerapi *player) {
     maybe_deinit(player);
     player->is_currently_falling_back_to_sw_decoding = true;
     init_camera(player, true);
 }
 
-static int apply_playback_state(struct camerapi *player)
-{
+static int apply_playback_state(struct camerapi *player) {
     GstStateChangeReturn ok;
     GstState current_state, pending_state;
 
@@ -216,8 +211,9 @@ static int apply_playback_state(struct camerapi *player)
 
     if (ok == GST_STATE_CHANGE_FAILURE) {
         LOG_ERROR(
-          "last gstreamer pipeline state change failed. gst_element_get_state(element name: %s): GST_STATE_CHANGE_FAILURE\n",
-          GST_ELEMENT_NAME(player->pipeline));
+            "last gstreamer pipeline state change failed. gst_element_get_state(element name: %s): GST_STATE_CHANGE_FAILURE\n",
+            GST_ELEMENT_NAME(player->pipeline)
+        );
         DEBUG_TRACE_END(player, "apply_playback_state");
         return EIO;
     }
@@ -263,8 +259,7 @@ static int apply_playback_state(struct camerapi *player)
     return 0;
 }
 
-static void on_bus_message(struct camerapi *player, GstMessage *msg)
-{
+static void on_bus_message(struct camerapi *player, GstMessage *msg) {
     GstState old, current, pending, requested;
     GError *error;
     gchar *debug_info;
@@ -280,7 +275,7 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             if (!res) {
                 LOG_ERROR("The barcode message did not contain a proper 'quality' field\n");
             }
-            BarcodeInfo *barcode = BarcodeInfo_new(symbol, type, quality);
+            struct barcode_info *barcode = barcode_info_new(symbol, type, quality);
             notifier_notify(camerapi_barcode_notifier(player), barcode);
             LOG_DEBUG("barcode detected: type: %s,  symbol: %s\n", type, symbol);
         }
@@ -290,15 +285,15 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             gst_message_parse_error(msg, &error, &debug_info);
 
             fprintf(
-              stderr,
-              "[gstreamer video player] gstreamer error: code: %d, domain: %s, msg: %s (debug info: %s)\n",
-              error->code,
-              g_quark_to_string(error->domain),
-              error->message,
-              debug_info);
-            if (
-              error->domain == GST_STREAM_ERROR && error->code == GST_STREAM_ERROR_DECODE &&
-              strcmp(error->message, "No valid frames decoded before end of stream") == 0) {
+                stderr,
+                "[gstreamer video player] gstreamer error: code: %d, domain: %s, msg: %s (debug info: %s)\n",
+                error->code,
+                g_quark_to_string(error->domain),
+                error->message,
+                debug_info
+            );
+            if (error->domain == GST_STREAM_ERROR && error->code == GST_STREAM_ERROR_DECODE &&
+                strcmp(error->message, "No valid frames decoded before end of stream") == 0) {
                 LOG_ERROR("Hardware decoder failed. Falling back to software decoding...\n");
                 fallback_to_sw_decoding(player);
             }
@@ -330,17 +325,18 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             gst_message_parse_buffering_stats(msg, &mode, &avg_in, &avg_out, &buffering_left);
 
             LOG_DEBUG(
-              "buffering, src: %s, percent: %d, mode: %s, avg in: %d B/s, avg out: %d B/s, %" GST_TIME_FORMAT "\n",
-              GST_MESSAGE_SRC_NAME(msg),
-              percent,
-              mode == GST_BUFFERING_STREAM      ? "stream"
-              : mode == GST_BUFFERING_DOWNLOAD  ? "download"
-              : mode == GST_BUFFERING_TIMESHIFT ? "timeshift"
-              : mode == GST_BUFFERING_LIVE      ? "live"
-                                                : "?",
-              avg_in,
-              avg_out,
-              GST_TIME_ARGS(buffering_left * GST_MSECOND));
+                "buffering, src: %s, percent: %d, mode: %s, avg in: %d B/s, avg out: %d B/s, %" GST_TIME_FORMAT "\n",
+                GST_MESSAGE_SRC_NAME(msg),
+                percent,
+                mode == GST_BUFFERING_STREAM    ? "stream" :
+                mode == GST_BUFFERING_DOWNLOAD  ? "download" :
+                mode == GST_BUFFERING_TIMESHIFT ? "timeshift" :
+                mode == GST_BUFFERING_LIVE      ? "live" :
+                                                  "?",
+                avg_in,
+                avg_out,
+                GST_TIME_ARGS(buffering_left * GST_MSECOND)
+            );
 
             /// TODO: GST_MESSAGE_BUFFERING is only emitted when we actually need to wait on some buffering till we can resume the
             /// playback. However, the info we send to the callback also contains information on the buffered video ranges. That
@@ -356,11 +352,12 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
         case GST_MESSAGE_STATE_CHANGED:
             gst_message_parse_state_changed(msg, &old, &current, &pending);
             LOG_DEBUG(
-              "state-changed: src: %s, old: %s, current: %s, pending: %s\n",
-              GST_MESSAGE_SRC_NAME(msg),
-              gst_element_state_get_name(old),
-              gst_element_state_get_name(current),
-              gst_element_state_get_name(pending));
+                "state-changed: src: %s, old: %s, current: %s, pending: %s\n",
+                GST_MESSAGE_SRC_NAME(msg),
+                gst_element_state_get_name(old),
+                gst_element_state_get_name(current),
+                gst_element_state_get_name(pending)
+            );
 
             if (GST_MESSAGE_SRC(msg) == GST_OBJECT(player->pipeline)) {
                 if (current == GST_STATE_PAUSED || current == GST_STATE_PLAYING) {
@@ -388,24 +385,21 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
             DEBUG_TRACE_END(player, "gst_bin_recalculate_latency");
             break;
 
-        case GST_MESSAGE_EOS:
-            LOG_DEBUG("end of stream, src: %s\n", GST_MESSAGE_SRC_NAME(msg));
-            break;
+        case GST_MESSAGE_EOS: LOG_DEBUG("end of stream, src: %s\n", GST_MESSAGE_SRC_NAME(msg)); break;
 
         case GST_MESSAGE_REQUEST_STATE:
             gst_message_parse_request_state(msg, &requested);
             LOG_DEBUG(
-              "gstreamer state change to %s was requested by %s\n",
-              gst_element_state_get_name(requested),
-              GST_MESSAGE_SRC_NAME(msg));
+                "gstreamer state change to %s was requested by %s\n",
+                gst_element_state_get_name(requested),
+                GST_MESSAGE_SRC_NAME(msg)
+            );
             DEBUG_TRACE_BEGIN(player, "gst_element_set_state");
             gst_element_set_state(GST_ELEMENT(player->pipeline), requested);
             DEBUG_TRACE_END(player, "gst_element_set_state");
             break;
 
-        case GST_MESSAGE_APPLICATION:
-            LOG_DEBUG("Application message\n");
-            break;
+        case GST_MESSAGE_APPLICATION: LOG_DEBUG("Application message\n"); break;
 
         default:
             if (strcmp(GST_MESSAGE_TYPE_NAME(msg), "qos") || strcmp(GST_MESSAGE_SRC_NAME(msg), "videoconvert0")) {
@@ -417,14 +411,13 @@ static void on_bus_message(struct camerapi *player, GstMessage *msg)
     return;
 }
 
-static int on_bus_fd_ready(sd_event_source *s, int fd, uint32_t revents, void *userdata)
-{
+static int on_bus_fd_ready(sd_event_source *s, int fd, uint32_t revents, void *userdata) {
     struct camerapi *player;
     GstMessage *msg;
 
-    (void)s;
-    (void)fd;
-    (void)revents;
+    (void) s;
+    (void) fd;
+    (void) revents;
 
     player = userdata;
 
@@ -441,12 +434,11 @@ static int on_bus_fd_ready(sd_event_source *s, int fd, uint32_t revents, void *u
     return 0;
 }
 
-static GstPadProbeReturn on_query_appsink(GstPad *pad, GstPadProbeInfo *info, void *userdata)
-{
+static GstPadProbeReturn on_query_appsink(GstPad *pad, GstPadProbeInfo *info, void *userdata) {
     GstQuery *query;
 
-    (void)pad;
-    (void)userdata;
+    (void) pad;
+    (void) userdata;
 
     query = info->data;
 
@@ -459,15 +451,14 @@ static GstPadProbeReturn on_query_appsink(GstPad *pad, GstPadProbeInfo *info, vo
     return GST_PAD_PROBE_HANDLED;
 }
 
-static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *userdata)
-{
+static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *userdata) {
     struct camerapi *player;
     GstVideoInfo vinfo;
     GstEvent *event;
     GstCaps *caps;
     gboolean ok;
 
-    (void)pad;
+    (void) pad;
 
     player = userdata;
     event = GST_PAD_PROBE_INFO_EVENT(info);
@@ -489,24 +480,12 @@ static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *
     }
 
     switch (GST_VIDEO_INFO_FORMAT(&vinfo)) {
-        case GST_VIDEO_FORMAT_Y42B:
-            player->drm_format = DRM_FORMAT_YUV422;
-            break;
-        case GST_VIDEO_FORMAT_YV12:
-            player->drm_format = DRM_FORMAT_YVU420;
-            break;
-        case GST_VIDEO_FORMAT_I420:
-            player->drm_format = DRM_FORMAT_YUV420;
-            break;
-        case GST_VIDEO_FORMAT_NV12:
-            player->drm_format = DRM_FORMAT_NV12;
-            break;
-        case GST_VIDEO_FORMAT_NV21:
-            player->drm_format = DRM_FORMAT_NV21;
-            break;
-        case GST_VIDEO_FORMAT_YUY2:
-            player->drm_format = DRM_FORMAT_YUYV;
-            break;
+        case GST_VIDEO_FORMAT_Y42B: player->drm_format = DRM_FORMAT_YUV422; break;
+        case GST_VIDEO_FORMAT_YV12: player->drm_format = DRM_FORMAT_YVU420; break;
+        case GST_VIDEO_FORMAT_I420: player->drm_format = DRM_FORMAT_YUV420; break;
+        case GST_VIDEO_FORMAT_NV12: player->drm_format = DRM_FORMAT_NV12; break;
+        case GST_VIDEO_FORMAT_NV21: player->drm_format = DRM_FORMAT_NV21; break;
+        case GST_VIDEO_FORMAT_YUY2: player->drm_format = DRM_FORMAT_YUYV; break;
         default:
             LOG_ERROR("unsupported video format: %s\n", GST_VIDEO_INFO_NAME(&vinfo));
             player->drm_format = 0;
@@ -529,11 +508,11 @@ static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *
     memcpy(&player->gst_info, &vinfo, sizeof vinfo);
     player->has_gst_info = true;
 
-    LOG_DEBUG("on_probe_pad, fps: %f, res: % 4d x % 4d\n", (double)vinfo.fps_n / vinfo.fps_d, vinfo.width, vinfo.height);
+    LOG_DEBUG("on_probe_pad, fps: %f, res: % 4d x % 4d\n", (double) vinfo.fps_n / vinfo.fps_d, vinfo.width, vinfo.height);
 
     player->info.info.width = vinfo.width;
     player->info.info.height = vinfo.height;
-    player->info.info.fps = (double)vinfo.fps_n / vinfo.fps_d;
+    player->info.info.fps = (double) vinfo.fps_n / vinfo.fps_d;
     player->info.has_resolution = true;
     player->info.has_fps = true;
     maybe_send_info(player);
@@ -541,11 +520,10 @@ static GstPadProbeReturn on_probe_pad(GstPad *pad, GstPadProbeInfo *info, void *
     return GST_PAD_PROBE_OK;
 }
 
-static void on_destroy_texture_frame(const struct texture_frame *texture_frame, void *userdata)
-{
+static void on_destroy_texture_frame(const struct texture_frame *texture_frame, void *userdata) {
     struct video_frame *frame;
 
-    (void)texture_frame;
+    (void) texture_frame;
 
     DEBUG_ASSERT_NOT_NULL(texture_frame);
     DEBUG_ASSERT_NOT_NULL(userdata);
@@ -555,14 +533,13 @@ static void on_destroy_texture_frame(const struct texture_frame *texture_frame, 
     frame_destroy(frame);
 }
 
-static void on_appsink_eos(GstAppSink *appsink, void *userdata)
-{
+static void on_appsink_eos(GstAppSink *appsink, void *userdata) {
     gboolean ok;
 
     DEBUG_ASSERT_NOT_NULL(appsink);
     DEBUG_ASSERT_NOT_NULL(userdata);
 
-    (void)userdata;
+    (void) userdata;
 
     LOG_DEBUG("on_appsink_eos()\n");
 
@@ -571,14 +548,15 @@ static void on_appsink_eos(GstAppSink *appsink, void *userdata)
     // post a message to the gstreamer bus instead, will be handled by
     // @ref on_bus_message.
     ok = gst_element_post_message(
-      GST_ELEMENT(appsink), gst_message_new_application(GST_OBJECT(appsink), gst_structure_new_empty("appsink-eos")));
+        GST_ELEMENT(appsink),
+        gst_message_new_application(GST_OBJECT(appsink), gst_structure_new_empty("appsink-eos"))
+    );
     if (ok == FALSE) {
         LOG_ERROR("Could not post appsink end-of-stream event to the message bus.\n");
     }
 }
 
-static GstFlowReturn on_appsink_new_preroll(GstAppSink *appsink, void *userdata)
-{
+static GstFlowReturn on_appsink_new_preroll(GstAppSink *appsink, void *userdata) {
     struct video_frame *frame;
     struct camerapi *player;
     GstSample *sample;
@@ -595,26 +573,26 @@ static GstFlowReturn on_appsink_new_preroll(GstAppSink *appsink, void *userdata)
     }
 
     frame = frame_new(
-      player->frame_interface,
-      &(struct frame_info){
-        .drm_format = player->drm_format, .egl_color_space = player->egl_color_space, .gst_info = &player->gst_info },
-      sample);
+        player->frame_interface,
+        &(struct frame_info){ .drm_format = player->drm_format, .egl_color_space = player->egl_color_space, .gst_info = &player->gst_info },
+        sample
+    );
 
     if (frame != NULL) {
         texture_push_frame(
-          player->texture,
-          &(struct texture_frame){
-            .gl = *frame_get_gl_frame(frame),
-            .destroy = on_destroy_texture_frame,
-            .userdata = frame,
-          });
+            player->texture,
+            &(struct texture_frame){
+                .gl = *frame_get_gl_frame(frame),
+                .destroy = on_destroy_texture_frame,
+                .userdata = frame,
+            }
+        );
     }
 
     return GST_FLOW_OK;
 }
 
-static GstFlowReturn on_appsink_new_sample(GstAppSink *appsink, void *userdata)
-{
+static GstFlowReturn on_appsink_new_sample(GstAppSink *appsink, void *userdata) {
     struct video_frame *frame;
     struct camerapi *player;
     GstSample *sample;
@@ -631,26 +609,26 @@ static GstFlowReturn on_appsink_new_sample(GstAppSink *appsink, void *userdata)
     }
 
     frame = frame_new(
-      player->frame_interface,
-      &(struct frame_info){
-        .drm_format = player->drm_format, .egl_color_space = player->egl_color_space, .gst_info = &player->gst_info },
-      sample);
+        player->frame_interface,
+        &(struct frame_info){ .drm_format = player->drm_format, .egl_color_space = player->egl_color_space, .gst_info = &player->gst_info },
+        sample
+    );
 
     if (frame != NULL) {
         texture_push_frame(
-          player->texture,
-          &(struct texture_frame){
-            .gl = *frame_get_gl_frame(frame),
-            .destroy = on_destroy_texture_frame,
-            .userdata = frame,
-          });
+            player->texture,
+            &(struct texture_frame){
+                .gl = *frame_get_gl_frame(frame),
+                .destroy = on_destroy_texture_frame,
+                .userdata = frame,
+            }
+        );
     }
 
     return GST_FLOW_OK;
 }
 
-static void on_appsink_cbs_destroy(void *userdata)
-{
+static void on_appsink_cbs_destroy(void *userdata) {
     struct camerapi *player;
 
     LOG_DEBUG("on_appsink_cbs_destroy()\n");
@@ -658,11 +636,10 @@ static void on_appsink_cbs_destroy(void *userdata)
 
     player = userdata;
 
-    (void)player;
+    (void) player;
 }
 
-static int init_camera(struct camerapi *player, bool force_sw_decoders)
-{
+static int init_camera(struct camerapi *player, bool force_sw_decoders) {
     sd_event_source *busfd_event_source;
     GstElement *pipeline, *sink;
     GstBus *bus;
@@ -672,9 +649,9 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
     int ok;
 
     static const char *pipeline_descr =
-      "libcamerasrc ! queue ! video/x-raw,width=640,height=480,framerate=0/1 ! queue ! zbar name=zbar ! videoconvert ! "
-      "video/x-raw,format=I420 ! videoflip method=horizontal-flip ! videoflip method=counterclockwise ! appsink sync=true "
-      "name=\"camerasink\"";
+        "libcamerasrc ! queue ! video/x-raw,width=640,height=480,framerate=0/1 ! queue ! zbar name=zbar ! videoconvert ! "
+        "video/x-raw,format=I420 ! videoflip method=horizontal-flip ! videoflip method=counterclockwise ! appsink sync=true "
+        "name=\"camerasink\"";
 
     pipeline = gst_parse_launch(pipeline_descr, &error);
     if (pipeline == NULL) {
@@ -705,13 +682,12 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
     gst_app_sink_set_drop(GST_APP_SINK(sink), FALSE);
 
     gst_app_sink_set_callbacks(
-      GST_APP_SINK(sink),
-      &(GstAppSinkCallbacks){ .eos = on_appsink_eos,
-                              .new_preroll = on_appsink_new_preroll,
-                              .new_sample = on_appsink_new_sample,
-                              ._gst_reserved = { 0 } },
-      player,
-      on_appsink_cbs_destroy);
+        GST_APP_SINK(sink),
+        &(GstAppSinkCallbacks
+        ){ .eos = on_appsink_eos, .new_preroll = on_appsink_new_preroll, .new_sample = on_appsink_new_sample, ._gst_reserved = { 0 } },
+        player,
+        on_appsink_cbs_destroy
+    );
 
     gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, on_probe_pad, player, NULL);
 
@@ -727,7 +703,7 @@ static int init_camera(struct camerapi *player, bool force_sw_decoders)
     player->sink = sink;
     /// FIXME: Not sure we need this here. pipeline is floating after gst_parse_launch, which
     /// means we should take a reference, but the examples don't increase the refcount.
-    player->pipeline = pipeline; // gst_object_ref(pipeline);
+    player->pipeline = pipeline;  // gst_object_ref(pipeline);
     player->bus = bus;
     player->busfd_events = busfd_event_source;
     player->is_forcing_sw_decoding = force_sw_decoders;
@@ -744,14 +720,13 @@ fail_unref_pipeline:
     return ok;
 }
 
-static void maybe_deinit(struct camerapi *player)
-{
+static void maybe_deinit(struct camerapi *player) {
     struct my_gst_object {
         GInitiallyUnowned object;
 
-        /*< public >*/     /* with LOCK */
-        GMutex lock;       /* object LOCK */
-        gchar *name;       /* object name */
+        /*< public >*/ /* with LOCK */
+        GMutex lock; /* object LOCK */
+        gchar *name; /* object name */
         GstObject *parent; /* this object's parent, weak ref */
         guint32 flags;
 
@@ -763,11 +738,11 @@ static void maybe_deinit(struct camerapi *player)
         gpointer _gst_reserved;
     };
 
-    struct my_gst_object *sink = (struct my_gst_object *)player->sink, *bus = (struct my_gst_object *)player->bus,
-                         *pipeline = (struct my_gst_object *)player->pipeline;
-    (void)sink;
-    (void)bus;
-    (void)pipeline;
+    struct my_gst_object *sink = (struct my_gst_object *) player->sink, *bus = (struct my_gst_object *) player->bus,
+                         *pipeline = (struct my_gst_object *) player->pipeline;
+    (void) sink;
+    (void) bus;
+    (void) pipeline;
 
     if (player->busfd_events != NULL) {
         sd_event_source_unrefp(&player->busfd_events);
@@ -787,9 +762,8 @@ static void maybe_deinit(struct camerapi *player)
     }
 }
 
-BarcodeInfo *BarcodeInfo_new(const char *barcode, const char *barcode_type, int quality)
-{
-    BarcodeInfo *info = (BarcodeInfo *)malloc(sizeof(BarcodeInfo));
+struct barcode_info *barcode_info_new(const char *barcode, const char *barcode_type, int quality) {
+    struct barcode_info *info = (struct barcode_info *) malloc(sizeof(struct barcode_info));
 
     info->barcode = malloc(strlen(barcode) + 1);
     strcpy(info->barcode, barcode);
@@ -802,8 +776,7 @@ BarcodeInfo *BarcodeInfo_new(const char *barcode, const char *barcode_type, int 
     return info;
 }
 
-void BarcodeInfo_destroy(BarcodeInfo *barcode_info)
-{
+void barcode_info_destroy(struct barcode_info *barcode_info) {
     if (barcode_info != NULL) {
         free(barcode_info->barcode);
         free(barcode_info->barcode_type);
@@ -811,16 +784,14 @@ void BarcodeInfo_destroy(BarcodeInfo *barcode_info)
     free(barcode_info);
 }
 
-void barcode_info_notifier_destructor(void *barcode_info)
-{
-    BarcodeInfo *info = (BarcodeInfo *)barcode_info;
-    BarcodeInfo_destroy(info);
+void barcode_info_notifier_destructor(void *barcode_info) {
+    struct barcode_info *info = (struct barcode_info *) barcode_info;
+    barcode_info_destroy(info);
 }
 
 DEFINE_LOCK_OPS(camerapi, lock)
 
-struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata)
-{
+struct camerapi *camerapi_new(struct flutterpi *flutterpi, void *userdata) {
     struct frame_interface *frame_interface;
     struct camerapi *player;
     struct texture *texture;
@@ -904,8 +875,7 @@ fail_free_player:
     return NULL;
 }
 
-void camerapi_destroy(struct camerapi *player)
-{
+void camerapi_destroy(struct camerapi *player) {
     LOG_DEBUG("camerapi_destroy(%p)\n", player);
     notifier_deinit(&player->video_info_notifier);
     notifier_deinit(&player->buffering_state_notifier);
@@ -917,23 +887,19 @@ void camerapi_destroy(struct camerapi *player)
     free(player);
 }
 
-int64_t camerapi_get_texture_id(struct camerapi *player)
-{
+int64_t camerapi_get_texture_id(struct camerapi *player) {
     return player->texture_id;
 }
 
-void camerapi_set_userdata_locked(struct camerapi *player, void *userdata)
-{
+void camerapi_set_userdata_locked(struct camerapi *player, void *userdata) {
     player->userdata = userdata;
 }
 
-void *camerapi_get_userdata_locked(struct camerapi *player)
-{
+void *camerapi_get_userdata_locked(struct camerapi *player) {
     return player->userdata;
 }
 
-int camerapi_initialize(struct camerapi *player)
-{
+int camerapi_initialize(struct camerapi *player) {
     int res = init_camera(player, false);
     if (res != 0) {
         return res;
@@ -941,21 +907,17 @@ int camerapi_initialize(struct camerapi *player)
     return apply_playback_state(player);
 }
 
-struct notifier *camerapi_get_video_info_notifier(struct camerapi *player)
-{
+struct notifier *camerapi_get_video_info_notifier(struct camerapi *player) {
     return &player->video_info_notifier;
 }
 
-struct notifier *camerapi_get_buffering_state_notifier(struct camerapi *player)
-{
+struct notifier *camerapi_get_buffering_state_notifier(struct camerapi *player) {
     return &player->buffering_state_notifier;
 }
 
-struct notifier *camerapi_get_error_notifier(struct camerapi *player)
-{
+struct notifier *camerapi_get_error_notifier(struct camerapi *player) {
     return &player->error_notifier;
 }
-struct notifier *camerapi_barcode_notifier(struct camerapi *player)
-{
+struct notifier *camerapi_barcode_notifier(struct camerapi *player) {
     return &player->barcode_notifier;
 }

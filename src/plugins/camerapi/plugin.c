@@ -1,10 +1,11 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#include <pthread.h>
 
 #include <gst/gst.h>
 #include <gst/video/video-info.h>
@@ -41,19 +42,16 @@ static struct plugin {
 } plugin;
 
 /// Add a player instance to the player collection.
-static int add_player(struct camerapi *player)
-{
+static int add_player(struct camerapi *player) {
     return cpset_put(&plugin.players, player);
 }
 
 /// Get a player instance by its id.
-static struct camerapi *get_player_by_texture_id(int64_t texture_id)
-{
+static struct camerapi *get_player_by_texture_id(int64_t texture_id) {
     struct camerapi *player;
 
     cpset_lock(&plugin.players);
-    for_each_pointer_in_cpset(&plugin.players, player)
-    {
+    for_each_pointer_in_cpset(&plugin.players, player) {
         if (camerapi_get_texture_id(player) == texture_id) {
             cpset_unlock(&plugin.players);
             return player;
@@ -65,14 +63,12 @@ static struct camerapi *get_player_by_texture_id(int64_t texture_id)
 }
 
 /// Get a player instance by its event channel name.
-static struct camerapi *get_player_by_evch(const char *const event_channel_name)
-{
+static struct camerapi *get_player_by_evch(const char *const event_channel_name) {
     struct camerapi_meta *meta;
     struct camerapi *player;
 
     cpset_lock(&plugin.players);
-    for_each_pointer_in_cpset(&plugin.players, player)
-    {
+    for_each_pointer_in_cpset(&plugin.players, player) {
         meta = camerapi_get_userdata_locked(player);
         if (strcmp(meta->event_channel_name, event_channel_name) == 0) {
             cpset_unlock(&plugin.players);
@@ -85,22 +81,19 @@ static struct camerapi *get_player_by_evch(const char *const event_channel_name)
 }
 
 /// Remove a player instance from the player collection.
-static int remove_player(struct camerapi *player)
-{
+static int remove_player(struct camerapi *player) {
     return cpset_remove(&plugin.players, player);
 }
 
-static struct camerapi_meta *get_meta(struct camerapi *player)
-{
-    return (struct camerapi_meta *)camerapi_get_userdata_locked(player);
+static struct camerapi_meta *get_meta(struct camerapi *player) {
+    return (struct camerapi_meta *) camerapi_get_userdata_locked(player);
 }
 
 /// Get the player id from the given arg, which is a kStdMap.
 /// (*texture_id_out = arg['playerId'])
 /// If an error ocurrs, this will respond with an illegal argument error to the given responsehandle.
 static int
-get_texture_id_from_map_arg(struct std_value *arg, int64_t *texture_id_out, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+get_texture_id_from_map_arg(struct std_value *arg, int64_t *texture_id_out, FlutterPlatformMessageResponseHandle *responsehandle) {
     struct std_value *id;
     int ok;
 
@@ -130,8 +123,7 @@ get_texture_id_from_map_arg(struct std_value *arg, int64_t *texture_id_out, Flut
 /// (*player_out = get_player_by_texture_id(get_texture_id_from_map_arg(arg)))
 /// If an error ocurrs, this will respond with an illegal argument error to the given responsehandle.
 static int
-get_player_from_map_arg(struct std_value *arg, struct camerapi **player_out, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+get_player_from_map_arg(struct std_value *arg, struct camerapi **player_out, FlutterPlatformMessageResponseHandle *responsehandle) {
     struct camerapi *player;
     int64_t texture_id;
     int ok;
@@ -150,21 +142,22 @@ get_player_from_map_arg(struct std_value *arg, struct camerapi **player_out, Flu
         int64_t *texture_ids = alloca(sizeof(int64_t) * n_texture_ids);
         int64_t *texture_ids_cursor = texture_ids;
 
-        for_each_pointer_in_cpset(&plugin.players, player)
-        {
+        for_each_pointer_in_cpset(&plugin.players, player) {
             *texture_ids_cursor++ = camerapi_get_texture_id(player);
         }
 
         cpset_unlock(&plugin.players);
 
         ok = platch_respond_illegal_arg_ext_pigeon(
-          responsehandle,
-          "Expected `arg['textureId']` to be a valid texture id.",
-          &STDMAP2(
-            STDSTRING("textureId"),
-            STDINT64(texture_id),
-            STDSTRING("registeredTextureIds"),
-            ((struct std_value){ .type = kStdInt64Array, .size = n_texture_ids, .int64array = texture_ids })));
+            responsehandle,
+            "Expected `arg['textureId']` to be a valid texture id.",
+            &STDMAP2(
+                STDSTRING("textureId"),
+                STDINT64(texture_id),
+                STDSTRING("registeredTextureIds"),
+                ((struct std_value){ .type = kStdInt64Array, .size = n_texture_ids, .int64array = texture_ids })
+            )
+        );
         if (ok != 0)
             return ok;
 
@@ -177,11 +170,11 @@ get_player_from_map_arg(struct std_value *arg, struct camerapi **player_out, Flu
 }
 
 static int get_player_and_meta_from_map_arg(
-  struct std_value *arg,
-  struct camerapi **player_out,
-  struct camerapi_meta **meta_out,
-  FlutterPlatformMessageResponseHandle *responsehandle)
-{
+    struct std_value *arg,
+    struct camerapi **player_out,
+    struct camerapi_meta **meta_out,
+    FlutterPlatformMessageResponseHandle *responsehandle
+) {
     struct camerapi *player;
     int ok;
 
@@ -195,14 +188,13 @@ static int get_player_and_meta_from_map_arg(
     }
 
     if (meta_out) {
-        *meta_out = (struct camerapi_meta *)camerapi_get_userdata_locked(player);
+        *meta_out = (struct camerapi_meta *) camerapi_get_userdata_locked(player);
     }
 
     return 0;
 }
 
-static int ensure_initialized()
-{
+static int ensure_initialized() {
     GError *gst_error;
     gboolean success;
 
@@ -220,30 +212,23 @@ static int ensure_initialized()
     return 0;
 }
 
-static int respond_init_failed(FlutterPlatformMessageResponseHandle *handle)
-{
+static int respond_init_failed(FlutterPlatformMessageResponseHandle *handle) {
     return platch_respond_error_pigeon(
-      handle,
-      "couldnotinit",
-      "gstreamer video player plugin failed to initialize gstreamer. See flutter-pi log for details.",
-      NULL);
+        handle,
+        "couldnotinit",
+        "gstreamer video player plugin failed to initialize gstreamer. See flutter-pi log for details.",
+        NULL
+    );
 }
 
-static int send_initialized_event(struct camerapi_meta *meta, int width, int height)
-{
+static int send_initialized_event(struct camerapi_meta *meta, int width, int height) {
     return platch_send_success_event_std(
-      meta->event_channel_name,
-      &STDMAP3(
-        STDSTRING("event"),
-        STDSTRING("initialized"),
-        STDSTRING("width"),
-        STDINT32(width),
-        STDSTRING("height"),
-        STDINT32(height)));
+        meta->event_channel_name,
+        &STDMAP3(STDSTRING("event"), STDSTRING("initialized"), STDSTRING("width"), STDINT32(width), STDSTRING("height"), STDINT32(height))
+    );
 }
 
-static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const struct buffering_range *ranges)
-{
+static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const struct buffering_range *ranges) {
     struct std_value values;
 
     values.type = kStdList;
@@ -260,11 +245,12 @@ static int send_buffering_update(struct camerapi_meta *meta, int n_ranges, const
     }
 
     return platch_send_success_event_std(
-      meta->event_channel_name, &STDMAP2(STDSTRING("event"), STDSTRING("bufferingUpdate"), STDSTRING("values"), values));
+        meta->event_channel_name,
+        &STDMAP2(STDSTRING("event"), STDSTRING("bufferingUpdate"), STDSTRING("values"), values)
+    );
 }
 
-static int send_barcode_info(char *barcode_type, char *barcode_content, int quality)
-{
+static int send_barcode_info(char *barcode_type, char *barcode_content, int quality) {
     // clang-format off
     return platch_send_success_event_std(BARCODE_EVENT_CHANNEL,
                                          &STDMAP3(STDSTRING("barcode_type"), STDSTRING(barcode_type),
@@ -273,18 +259,15 @@ static int send_barcode_info(char *barcode_type, char *barcode_content, int qual
     // clang-format on
 }
 
-static int send_buffering_start(struct camerapi_meta *meta)
-{
+static int send_buffering_start(struct camerapi_meta *meta) {
     return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("bufferingStart")));
 }
 
-static int send_buffering_end(struct camerapi_meta *meta)
-{
+static int send_buffering_end(struct camerapi_meta *meta) {
     return platch_send_success_event_std(meta->event_channel_name, &STDMAP1(STDSTRING("event"), STDSTRING("bufferingEnd")));
 }
 
-static enum listener_return on_video_info_notify(void *arg, void *userdata)
-{
+static enum listener_return on_video_info_notify(void *arg, void *userdata) {
     struct camerapi_meta *meta;
     struct camera_video_info *info;
 
@@ -309,12 +292,11 @@ static enum listener_return on_video_info_notify(void *arg, void *userdata)
     return kUnlisten;
 }
 
-static enum listener_return on_barcode_value_notify(void *arg, void *userdata)
-{
-    struct BarcodeInfo *info;
+static enum listener_return on_barcode_value_notify(void *arg, void *userdata) {
+    struct barcode_info *info;
     char *data;
     char *type;
-    (void)userdata;
+    (void) userdata;
     info = arg;
 
     if (arg == NULL) {
@@ -332,8 +314,7 @@ static enum listener_return on_barcode_value_notify(void *arg, void *userdata)
     return kNoAction;
 }
 
-static enum listener_return on_buffering_state_notify(void *arg, void *userdata)
-{
+static enum listener_return on_buffering_state_notify(void *arg, void *userdata) {
     struct buffering_state *state;
     struct camerapi_meta *meta;
     bool new_is_buffering;
@@ -364,8 +345,7 @@ static enum listener_return on_buffering_state_notify(void *arg, void *userdata)
  * CHANNEL HANDLERS                                    *
  * handle method calls on the method and event channel *
  *******************************************************/
-static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
     struct camerapi_meta *meta;
     struct camerapi *player;
     const char *method;
@@ -391,7 +371,7 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
         }
 
         meta->buffering_state_listener =
-          notifier_listen(camerapi_get_buffering_state_notifier(player), on_buffering_state_notify, NULL, meta);
+            notifier_listen(camerapi_get_buffering_state_notifier(player), on_buffering_state_notify, NULL, meta);
 
         if (meta->buffering_state_listener == NULL) {
             LOG_ERROR("Couldn't listen for buffering events in camerapi.\n");
@@ -424,12 +404,11 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
     return 0;
 }
 
-static int on_initialize(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+static int on_initialize(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
     int ok;
 
-    (void)channel;
-    (void)object;
+    (void) channel;
+    (void) object;
 
     ok = ensure_initialized();
     if (ok != 0) {
@@ -446,8 +425,7 @@ static int on_initialize(char *channel, struct platch_obj *object, FlutterPlatfo
 /// Allocates and initializes a camerapi_meta struct, which we
 /// use to store additional information in a camerapi instance.
 /// (The event channel name for that player)
-static struct camerapi_meta *create_meta(int64_t texture_id)
-{
+static struct camerapi_meta *create_meta(int64_t texture_id) {
     struct camerapi_meta *meta;
     char *event_channel_name;
 
@@ -469,22 +447,20 @@ static struct camerapi_meta *create_meta(int64_t texture_id)
     return meta;
 }
 
-static void destroy_meta(struct camerapi_meta *meta)
-{
+static void destroy_meta(struct camerapi_meta *meta) {
     free(meta->event_channel_name);
     free(meta);
 }
 
 /// Creates a new video player.
 /// Should respond to the platform message when the player has established its viewport.
-static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
     struct camerapi_meta *meta;
     struct camerapi *player;
     int ok;
 
-    (void)channel;
-    (void)object;
+    (void) channel;
+    (void) object;
 
     ok = ensure_initialized();
     if (ok != 0) {
@@ -528,8 +504,7 @@ static int on_create(char *channel, struct platch_obj *object, FlutterPlatformMe
 
     LOG_DEBUG("respond success on_create\n");
 
-    return platch_respond_success_pigeon(
-      responsehandle, &STDMAP1(STDSTRING("textureId"), STDINT64(camerapi_get_texture_id(player))));
+    return platch_respond_success_pigeon(responsehandle, &STDMAP1(STDSTRING("textureId"), STDINT64(camerapi_get_texture_id(player))));
 
 fail_remove_receiver:
     plugin_registry_remove_receiver(meta->event_channel_name);
@@ -547,14 +522,13 @@ fail_respond_error:
     return platch_respond_native_error_pigeon(responsehandle, ok);
 }
 
-static int on_dispose(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle)
-{
+static int on_dispose(char *channel, struct platch_obj *object, FlutterPlatformMessageResponseHandle *responsehandle) {
     struct camerapi_meta *meta;
     struct camerapi *player;
     struct std_value *arg;
     int ok;
 
-    (void)channel;
+    (void) channel;
 
     arg = &object->std_value;
 
@@ -581,11 +555,10 @@ static int on_dispose(char *channel, struct platch_obj *object, FlutterPlatformM
     return platch_respond_success_pigeon(responsehandle, NULL);
 }
 
-enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void **userdata_out)
-{
+enum plugin_init_result camerapi_plugin_init(struct flutterpi *flutterpi, void **userdata_out) {
     int ok;
 
-    (void)userdata_out;
+    (void) userdata_out;
 
     plugin.flutterpi = flutterpi;
     plugin.initialized = false;
@@ -631,10 +604,9 @@ fail_deinit_cpset:
     return kError_PluginInitResult;
 }
 
-void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata)
-{
-    (void)flutterpi;
-    (void)userdata;
+void camerapi_plugin_deinit(struct flutterpi *flutterpi, void *userdata) {
+    (void) flutterpi;
+    (void) userdata;
 
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.dispose");
     plugin_registry_remove_receiver("dev.flutter.pigeon.CameraPiApi.create");
