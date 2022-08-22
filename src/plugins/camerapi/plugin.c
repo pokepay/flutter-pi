@@ -365,10 +365,10 @@ static int on_receive_evch(char *channel, struct platch_obj *object, FlutterPlat
         platch_respond_success_std(responsehandle, NULL);
         meta->has_listener = true;
 
-        /* meta->video_info_listener = notifier_listen(camerapi_get_video_info_notifier(player), on_video_info_notify, NULL, meta); */
-        /* if (meta->video_info_listener == NULL) { */
-        /*     LOG_ERROR("Couldn't listen for video info events in camerapi.\n"); */
-        /* } */
+        meta->video_info_listener = notifier_listen(camerapi_get_video_info_notifier(player), on_video_info_notify, NULL, meta);
+        if (meta->video_info_listener == NULL) {
+            LOG_ERROR("Couldn't listen for video info events in camerapi.\n");
+        }
 
         /* meta->buffering_state_listener = */
         /*     notifier_listen(camerapi_get_buffering_state_notifier(player), on_buffering_state_notify, NULL, meta); */
