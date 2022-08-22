@@ -269,6 +269,7 @@ if (BUILD_CAMERAPI_PLUGIN)
     target_sources(flutter-pi PRIVATE
       src/plugins/camerapi/plugin.c
       src/plugins/camerapi/player.c
+      src/plugins/mobile_scanner.c
       # src/plugins/camerapi/frame.c
     )
     target_compile_definitions(flutter-pi PRIVATE "BUILD_CAMERAPI_PLUGIN")
