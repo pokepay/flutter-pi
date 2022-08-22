@@ -136,6 +136,15 @@ static int mobile_scanner_on_method_call(char *channel, struct platch_obj *objec
             return platch_respond_error_std(responsehandle, "MobileScanner", "camera already in use", NULL);
         }
         plugin.camerapi = camerapi_new(plugin.flutterpi, NULL);
+        if (plugin.camerapi == NULL) {
+            return platch_respond_error_std(responsehandle, "MobileScanner", "Could not create camera", NULL);
+        }
+        int ok = camerapi_initialize(plugin.camerapi);
+        if (ok != 0) {
+            camerapi_destroy(plugin.camerapi);
+            plugin.camerapi = NULL;
+            return platch_respond_error_std(responsehandle, "MobileScanner", "Could not initialize camera", NULL);
+        }
         plugin.video_info_listener =
             notifier_listen(camerapi_get_video_info_notifier(plugin.camerapi), mobile_scanner_on_video_info_notify, NULL, responsehandle);
         plugin.barcode_listener =
