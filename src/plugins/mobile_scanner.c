@@ -71,6 +71,7 @@ static enum listener_return mobile_scanner_on_video_info_notify(void *arg, void 
         return kNoAction;
     }
 
+    // FIXME for some reasons, sizes are inverted (is it because our camera is rotated? can't tell)
     LOG_DEBUG("Got video info: w x h: % 4d x % 4d\n", info->width, info->height);
 
     /// on_video_info_notify is called on an internal thread,
@@ -80,8 +81,8 @@ static enum listener_return mobile_scanner_on_video_info_notify(void *arg, void 
         responsehandle,
         &STDMAP3(
             STDSTRING("textureId"), STDINT64(camerapi_get_texture_id(plugin.camerapi)),
-            STDSTRING("size"),      STDMAP2(STDSTRING("width"),  STDFLOAT64(info->width),
-                                            STDSTRING("height"), STDFLOAT64(info->height)),
+            STDSTRING("size"),      STDMAP2(STDSTRING("height"), STDFLOAT64(info->width),
+                                            STDSTRING("width"),  STDFLOAT64(info->height)),
             STDSTRING("torchable"), STDBOOL(false)
         )
     );
