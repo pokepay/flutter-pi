@@ -25,10 +25,10 @@
 #include <notifier_listener.h>
 #include <platformchannel.h>
 #include <pluginregistry.h>
-#include <plugins/camerapi.h>
+#include <plugins/mobile_scanner.h>
 #include <texture_registry.h>
 
-FILE_DESCR("camerapi")
+FILE_DESCR("Mobile Scanner")
 
 #ifdef DEBUG
     #define DEBUG_TRACE_BEGIN(player, name) trace_begin(player, name)

@@ -41,9 +41,9 @@ option(BUILD_RAW_KEYBOARD_PLUGIN "Include the raw keyboard plugin in the finishe
 option(BUILD_TEST_PLUGIN "Include the test plugin in the finished binary. Allows testing platform channel communication." OFF)
 option(BUILD_OMXPLAYER_VIDEO_PLAYER_PLUGIN "Include the omxplayer_video_player plugin in the finished binary. Allows for hardware accelerated video playback in flutter using omxplayer." ON)
 option(BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN "Include the gstreamer_video_player plugin in the finished binary. Allows for more stable, hardware accelerated video playback in flutter using gstreamer." ON)
-option(BUILD_CAMERAPI_PLUGIN "Include the gstreamer based camera plugin in the finished binary. Allows displaying the raspberry pi camera stream (libcamera) and scanning QR/Barcodes." ON)
+option(BUILD_MOBILE_SCANNER_PLUGIN "Include the gstreamer based camera plugin in the finished binary. Allows displaying the raspberry pi camera stream (libcamera) and scanning QR/Barcodes." ON)
 option(TRY_BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN "Don't throw an error if the gstreamer libs aren't found, instead just don't build the gstreamer video player plugin in that case." ON)
-option(TRY_BUILD_CAMERAPI_PLUGIN "Don't throw an error if the gstreamer libs aren't found, instead just don't build the camerapi plugin in that case." ON)
+option(TRY_BUILD_MOBILE_SCANNER_PLUGIN "Don't throw an error if the gstreamer libs aren't found, instead just don't build the mobile_scanner plugin in that case." ON)
 option(DUMP_ENGINE_LAYERS "True if flutter-pi should dump the list of rendering layers that the flutter engine sends to flutter-pi on each draw." OFF)
 option(ENABLE_TSAN "True to build & link with -fsanitize=thread" OFF)
 option(ENABLE_ASAN "True to build & link with -fsanitize=address" OFF)
@@ -248,8 +248,8 @@ if (BUILD_GSTREAMER_VIDEO_PLAYER_PLUGIN)
   endif()
 endif()
 
-if (BUILD_CAMERAPI_PLUGIN)
-  if (TRY_BUILD_CAMERAPI_PLUGIN)
+if (BUILD_MOBILE_SCANNER_PLUGIN)
+  if (TRY_BUILD_MOBILE_SCANNER_PLUGIN)
     pkg_check_modules(LIBGSTREAMER gstreamer-1.0)
     pkg_check_modules(LIBGSTREAMER_PLUGINS_BASE gstreamer-plugins-base-1.0)
     pkg_check_modules(LIBGSTREAMER_APP gstreamer-app-1.0)
@@ -267,12 +267,10 @@ if (BUILD_CAMERAPI_PLUGIN)
 
   if (LIBGSTREAMER_FOUND AND LIBGSTREAMER_PLUGINS_BASE_FOUND AND LIBGSTREAMER_APP_FOUND AND LIBGSTREAMER_ALLOCATORS_FOUND AND LIBGSTREAMER_VIDEO_FOUND)
     target_sources(flutter-pi PRIVATE
-      src/plugins/camerapi/plugin.c
-      src/plugins/camerapi/player.c
-      src/plugins/mobile_scanner.c
-      # src/plugins/camerapi/frame.c
+      src/plugins/mobile_scanner/player.c
+      src/plugins/mobile_scanner/plugin.c
     )
-    target_compile_definitions(flutter-pi PRIVATE "BUILD_CAMERAPI_PLUGIN")
+    target_compile_definitions(flutter-pi PRIVATE "BUILD_MOBILE_SCANNER_PLUGIN")
     target_link_libraries(flutter-pi
       ${LIBGSTREAMER_LDFLAGS}
       ${LIBGSTREAMER_PLUGINS_BASE_LDFLAGS}

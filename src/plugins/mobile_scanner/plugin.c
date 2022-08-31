@@ -1,13 +1,13 @@
 /* #include "mobile_scanner.h" */
-#include "camerapi.h"
 #include "flutter_embedder.h"
+#include "mobile_scanner.h"
 #include "platformchannel.h"
 
 #include <flutter-pi.h>
 #include <notifier_listener.h>
 #include <pluginregistry.h>
 
-FILE_DESCR("mobile scanner plugin")
+FILE_DESCR("Mobile Scanner")
 
 #define MOBILE_SCANNER_METHOD_CHANNEL "dev.steenbakker.mobile_scanner/scanner/method"
 #define MOBILE_SCANNER_EVENT_CHANNEL "dev.steenbakker.mobile_scanner/scanner/event"
